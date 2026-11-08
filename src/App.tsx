@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 
 import { follow, usePath } from "./router";
 import { EssayView } from "./screens/EssayView";
@@ -63,8 +63,19 @@ function route(path: string): React.JSX.Element {
   return <NotFound />;
 }
 
+const TITLES: Record<string, string> = {
+  "/": "Margin Notes",
+  "/scan": "Scan an essay | Margin Notes",
+  "/samples": "Try a sample | Margin Notes",
+  "/essays": "My essays | Margin Notes",
+  "/key": "Marking key | Margin Notes",
+};
+
 export function App(): React.JSX.Element {
   const path = usePath();
+  useEffect(() => {
+    document.title = TITLES[path.split("?")[0] ?? "/"] ?? "Margin Notes";
+  }, [path]);
   const shared = path.startsWith("/n/");
   return (
     <>
