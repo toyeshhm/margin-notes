@@ -31,11 +31,10 @@ const GROQ_MODELS: Record<string, string> = {
   [SCOUT]: "qwen/qwen3.8-27b",
   [LLAMA]: "openai/gpt-oss-120b",
 };
-// Groq's free tier allows about 30 requests a minute: calls start at least this far apart.
-const GROQ_GAP_MS = 2100;
+// Groq's free tier allows about 30 requests a minute; a 429 is waited out below. No state is shared between
+// requests: a timer made in one request never fires in another's, so a shared queue hangs.
 // A stalled Groq call gives up after this long and the caller falls back to Workers AI.
-const GROQ_TIMEOUT_MS = 45000;
-let groqTurn: Promise<void> = Promise.resolve();
+const GROQ_TIMEOUT_MS = 40000;
 
 // The Workers AI request body, reshaped for Groq's OpenAI-compatible endpoint.
 export function toGroq(model: string, input: Record<string, unknown>): Record<string, unknown> {
@@ -58,23 +57,30 @@ async function groq(env: Env, model: string, input: Record<string, unknown>): Pr
   if (env.GROQ_API_KEY === undefined || groqModel === undefined) return undefined;
   const body = JSON.stringify(toGroq(groqModel, input));
   for (let attempt = 0; attempt < 3; attempt++) {
-    const turn = groqTurn;
-    groqTurn = turn.then(() => sleep(GROQ_GAP_MS));
-    await turn;
     try {
-      const res = await fetch(GROQ_URL, {
-        method: "POST",
-        headers: { authorization: `Bearer ${env.GROQ_API_KEY}`, "content-type": "application/json" },
-        body,
-        signal: AbortSignal.timeout(GROQ_TIMEOUT_MS),
+      const stop = new AbortController();
+      const timer = setTimeout(() => { stop.abort(); }, GROQ_TIMEOUT_MS);
+      const stalled = new Promise<never>((_, reject) => {
+        stop.signal.addEventListener("abort", () => { reject(new Error("groq timed out")); });
       });
+      const res = await Promise.race([
+        fetch(GROQ_URL, {
+          method: "POST",
+          headers: { authorization: `Bearer ${env.GROQ_API_KEY}`, "content-type": "application/json" },
+          body,
+          signal: stop.signal,
+        }),
+        stalled,
+      ]);
       if (res.ok) {
-        const out = (await res.json()) as { choices?: { message?: { content?: unknown } }[] };
+        const out = (await Promise.race([res.json(), stalled])) as { choices?: { message?: { content?: unknown } }[] };
+        clearTimeout(timer);
         const content = out.choices?.[0]?.message?.content;
         if (typeof content === "string") return { response: content };
         log("warn", "groq gave no text", { model: groqModel });
         return undefined;
       }
+      clearTimeout(timer);
       log("warn", "groq refused", { status: res.status, model: groqModel });
       if ((res.status !== 429 && res.status !== 503) || attempt === 2) return undefined;
       await sleep(Math.min(Number(res.headers.get("retry-after") ?? "6"), 25) * 1000);
