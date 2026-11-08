@@ -57,7 +57,7 @@
 .revise textarea { width: 100%; resize: vertical; padding: 14px; border: 0; border-radius: 3px; background: var(--color-paper); color: var(--color-type); font: 17px/1.6 var(--font-essay); }
 .revise textarea:focus-visible { outline: 3px solid var(--color-accent); }
 .revise-actions { display: flex; gap: 12px; flex-wrap: wrap; }
-.draft { width: 100%; min-height: 0; padding: 26px 28px; font-size: 17px; line-height: 1.85; box-shadow: 0 18px 32px rgba(0, 0, 0, 0.4); }
+.draft.paper { box-sizing: border-box; max-width: 100%; width: 100%; min-height: 0; padding: 26px 28px; font-size: 17px; line-height: 1.85; box-shadow: 0 18px 32px rgba(0, 0, 0, 0.4); }
 .draft p { margin: 0 0 4px; }
 .draft p.flush { text-indent: 0; margin: 0; }
 .draft .draft-label { text-indent: 0; font-family: var(--font-body); font-size: 15px; color: var(--color-meta); margin-bottom: 10px; }
