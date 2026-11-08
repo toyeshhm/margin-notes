@@ -35,6 +35,9 @@ const GROQ_MODELS: Record<string, string> = {
 // requests: a timer made in one request never fires in another's, so a shared queue hangs.
 // A stalled Groq call gives up after this long and the caller falls back to Workers AI.
 const GROQ_TIMEOUT_MS = 40000;
+// A rate-limited call is retried this many times, within this much time, before Workers AI is tried.
+const GROQ_TRIES = 4;
+const GROQ_BUDGET_MS = 110000;
 
 // The Workers AI request body, reshaped for Groq's OpenAI-compatible endpoint.
 export function toGroq(model: string, input: Record<string, unknown>): Record<string, unknown> {
@@ -56,7 +59,8 @@ async function groq(env: Env, model: string, input: Record<string, unknown>): Pr
   const groqModel = GROQ_MODELS[model];
   if (env.GROQ_API_KEY === undefined || groqModel === undefined) return undefined;
   const body = JSON.stringify(toGroq(groqModel, input));
-  for (let attempt = 0; attempt < 3; attempt++) {
+  const started = Date.now();
+  for (let attempt = 0; attempt < GROQ_TRIES; attempt++) {
     try {
       const stop = new AbortController();
       const timer = setTimeout(() => { stop.abort(); }, GROQ_TIMEOUT_MS);
@@ -82,8 +86,9 @@ async function groq(env: Env, model: string, input: Record<string, unknown>): Pr
       }
       clearTimeout(timer);
       log("warn", "groq refused", { status: res.status, model: groqModel });
-      if ((res.status !== 429 && res.status !== 503) || attempt === 2) return undefined;
-      await sleep(Math.min(Number(res.headers.get("retry-after") ?? "6"), 25) * 1000);
+      const wait = Math.min(Number(res.headers.get("retry-after") ?? "6") + 1, 40);
+      if ((res.status !== 429 && res.status !== 503) || attempt === GROQ_TRIES - 1 || Date.now() - started + wait * 1000 > GROQ_BUDGET_MS) return undefined;
+      await sleep(wait * 1000);
     } catch (error) {
       log("warn", "groq unreachable", { error: error instanceof Error ? error.message : String(error) });
       return undefined;
