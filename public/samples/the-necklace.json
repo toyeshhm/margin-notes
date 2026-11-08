@@ -169,49 +169,77 @@
    "words": "Too general. What exactly does she want?",
    "kind": "comment",
    "near": "a woman who wanted more",
-   "sentenceId": "s6"
+   "sentenceId": "s6",
+   "plain": {
+    "meaning": "This point is too general.",
+    "todo": "Say exactly what she wants, in concrete terms."
+   }
   },
   {
    "n": 2,
    "words": "Two claims in one thesis. Which one is your argument?",
    "kind": "comment",
    "near": "Maupassant shows that pride costs more than poverty, and that Mathilde loses her youth",
-   "sentenceId": "s7"
+   "sentenceId": "s7",
+   "plain": {
+    "meaning": "The thesis makes two claims.",
+    "todo": "Choose the one claim you will argue and build the thesis on it."
+   }
   },
   {
    "n": 3,
    "words": "Cite the page for this quote.",
    "kind": "comment",
    "near": "“as if by a slip of fate”",
-   "sentenceId": "s9"
+   "sentenceId": "s9",
+   "plain": {
+    "meaning": "This quote needs a page number.",
+    "todo": "Add the page where the quote appears."
+   }
   },
   {
    "n": 4,
    "words": "This paragraph is plot summary. Analyze: why does the ball matter?",
    "kind": "comment",
    "near": "She borrows a diamond necklace from her friend Madame Forestier and goes to the ball.",
-   "sentenceId": "s12"
+   "sentenceId": "s12",
+   "plain": {
+    "meaning": "This paragraph retells the plot instead of analyzing it.",
+    "todo": "Explain why the ball matters to the story's meaning, not just what happens."
+   }
   },
   {
    "n": 5,
    "words": "Run-on sentence.",
    "kind": "comment",
    "near": "The real turning point is what Mathilde chooses next, she could tell her friend the truth",
-   "sentenceId": "s15"
+   "sentenceId": "s15",
+   "plain": {
+    "meaning": "Two sentences run together.",
+    "todo": "Split them with a period, or join them with and, but or because."
+   }
   },
   {
    "n": 6,
    "words": "wc: show it instead of saying it.",
    "kind": "comment",
    "near": "very sad",
-   "sentenceId": "s18"
+   "sentenceId": "s18",
+   "plain": {
+    "meaning": "Show it instead of telling it.",
+    "todo": "Use a detail or an action that lets the reader see it."
+   }
   },
   {
    "n": 7,
    "words": "This repeats your thesis word for word. So what?",
    "kind": "comment",
    "near": "The story shows that pride costs more than poverty.",
-   "sentenceId": "s21"
+   "sentenceId": "s21",
+   "plain": {
+    "meaning": "This repeats your thesis.",
+    "todo": "Add a new point that moves the argument forward."
+   }
   }
  ]
 }

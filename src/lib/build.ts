@@ -135,7 +135,7 @@ export async function addPlainWords(paragraphs: readonly Paragraph[], marks: Mar
   try {
     plains = await explain(marks.map((m) => ({ n: m.n, words: m.words, sentence: text.get(m.sentenceId) ?? m.near })));
   } catch (error) {
-    if (!(error instanceof ApiError) || error.kind !== "allowance") throw error;
+    if (!(error instanceof ApiError) || error.kind === "bad-request") throw error;
     plains = new Map(marks.flatMap((m) => {
       const key = keyFor(m.words);
       return key === undefined ? [] : [[m.n, { meaning: key.meaning, todo: key.todo }] as const];

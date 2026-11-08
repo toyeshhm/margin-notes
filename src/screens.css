@@ -114,8 +114,8 @@
   .ba-cols section + section { border-left: 0; border-top: 1px solid rgba(80, 110, 190, 0.3); }
 }
 @media (max-width: 600px) {
-  .essay-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 18px; }
-  .essay-tabs a { white-space: nowrap; }
+  .essay-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 14px; }
+  .essay-tabs a { white-space: nowrap; font-size: 14px; }
   .note-sheet { padding: 22px 16px; }
   .note-sheet li { grid-template-columns: 20px 1fr; }
   .note-change { grid-column: 2; }

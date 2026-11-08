@@ -15,8 +15,9 @@ export class ApiError extends Error {
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(path, { ...init, headers: { "content-type": "application/json" } });
-  } catch {
+    response = await fetch(path, { ...init, headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(55_000) });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") throw new ApiError("failed", "The reading took too long. Try again in a minute.");
     throw new ApiError("offline", "Couldn't reach Margin Notes. Check your connection and try again.");
   }
   const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
