@@ -3,6 +3,7 @@
 // out as objects on the desk.
 
 import { Hand, Tick } from "../components/Hand";
+import { prefersReducedMotion } from "../motion";
 import { follow } from "../router";
 
 const OBJECTS = [
@@ -62,10 +63,14 @@ export function Home(): React.JSX.Element {
         <span className="m-awk">
           <Hand words="awk" size={56} write delay={0.4} />
         </span>
-        <video className="m-relief" autoPlay muted loop playsInline poster="/assets/page1-relief.webp">
-          <source src="/assets/relief-loop.webm" type="video/webm" />
-          <source src="/assets/relief-loop.mp4" type="video/mp4" />
-        </video>
+        {prefersReducedMotion() ? (
+          <img className="m-relief" src="/assets/page1-relief.webp" alt="" />
+        ) : (
+          <video className="m-relief" autoPlay muted loop playsInline poster="/assets/page1-relief.webp">
+            <source src="/assets/relief-loop.webm" type="video/webm" />
+            <source src="/assets/relief-loop.mp4" type="video/mp4" />
+          </video>
+        )}
         <img className="m-page" src="/assets/home-page1.webp" alt="" />
         <span className="m-tick">
           <Tick size={70} write delay={1.4} seed={9} />

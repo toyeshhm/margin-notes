@@ -142,7 +142,20 @@ export function Page({ essay, page, width, open, moving, write, delay, onOpen, o
           <p key={i} className={p.heading ? (i === titleAt ? "paper-head paper-title" : "paper-head") : undefined}>
             {p.sentences.map((s) => (
               <span key={s.id}>
-                <span className={`s${s.id === lit ? " lit" : ""}`} data-s={s.id}>
+                <span
+                  className={`s${s.id === lit ? " lit" : ""}`}
+                  data-s={s.id}
+                  {...(moving !== undefined && {
+                    role: "button",
+                    tabIndex: 0,
+                    onKeyDown: (e: React.KeyboardEvent) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onMove(moving, s.id);
+                      }
+                    },
+                  })}
+                >
                   {sentenceChildren(
                     s.text,
                     marks.filter((m) => m.sentenceId === s.id),
