@@ -30,4 +30,4 @@ The three sample essays, their students, teachers and school are invented for th
 
 ## AI models
 
-NVIDIA NIM (free tier, tried first for pictures: Llama 4 Maverick or Llama 3.2 90B Vision), Groq (free tier: Qwen3.8 27B for pictures, gpt-oss-120b for plain words and revision checks) and Workers AI on Cloudflare (the fallback: Llama 4 Scout reads page photos and each mark, Llama 3.3 70B), bge-m3 (sentence embeddings to line up drafts). They run when a student uses the app; nothing they write is shipped as an asset.
+NVIDIA NIM (free tier: Llama 3.2 90B Vision tried first for pictures and, after Groq, for plain words and revision checks; Nemotron 3.5 Super VL and Gemma 4 as further picture readers; gpt-oss-20b; Llama 3.2 NV EmbedQA, Nemotron 3.5 Embed and Nemotron 3 Embed for sentence embeddings), Groq (free tier: Qwen3.8 27B for pictures, gpt-oss-120b and gpt-oss-20b for plain words and revision checks) and Workers AI on Cloudflare (the last fallback: Llama 4 Scout reads page photos and each mark, Llama 3.3 70B writes and judges, bge-m3 embeds sentences to line up drafts). They run when a student uses the app; nothing they write is shipped as an asset.

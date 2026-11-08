@@ -96,6 +96,11 @@ test("checking the sample's revisions: quoted ticks, a reasoned miss, then most 
   const url = await page.evaluate(() => navigator.clipboard.readText());
   await page.goto(url);
   await expect(page.locator(".note-sheet li")).toHaveCount(11);
+  // My essays lists the essay with both rounds, and a round opens its results.
+  await page.goto("/essays");
+  await expect(page.locator(".folder-rounds li")).toHaveCount(2);
+  await page.locator(".folder-rounds a").first().click();
+  await expect(page.locator(".card .count")).toHaveText("Round 1");
 });
 
 test("the Word sample shows each typed comment on the words it was left on", async ({ page }) => {
