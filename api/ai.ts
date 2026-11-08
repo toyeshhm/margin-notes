@@ -67,11 +67,32 @@ export async function embed(env: Env, texts: string[]): Promise<number[][]> {
   return vectors;
 }
 
+// The request body as JSON, refusing anything over `maxBytes`. Content-Length is a fast check, but a
+// chunked body has none, so bytes are also counted as they arrive and reading stops past the limit.
 export async function readJSON(request: Request, maxBytes: number): Promise<unknown> {
-  const length = Number(request.headers.get("content-length") ?? "0");
-  if (length > maxBytes) throw new BadRequest("That file is too large.");
+  const tooLarge = new BadRequest("That file is too large.");
+  if (Number(request.headers.get("content-length") ?? "0") > maxBytes) throw tooLarge;
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  if (request.body !== null) {
+    const reader = request.body.getReader();
+    for (let part = await reader.read(); !part.done; part = await reader.read()) {
+      total += part.value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw tooLarge;
+      }
+      chunks.push(part.value);
+    }
+  }
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    bytes.set(c, at);
+    at += c.byteLength;
+  }
   try {
-    return await request.json();
+    return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
   } catch {
     throw new BadRequest("The request wasn't valid JSON.");
   }

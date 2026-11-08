@@ -13,5 +13,5 @@ export default defineConfig({
       },
     },
   },
-  test: { include: ["src/**/*.test.ts"] },
+  test: { include: ["src/**/*.test.ts", "api/**/*.test.ts"] },
 });
