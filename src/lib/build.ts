@@ -5,8 +5,8 @@ import { ApiError, explain, readContext, readPageText, readWholePage, readWritin
 import { keyFor, snapMark } from "./markingKey";
 import { cropMark, cropWriting, findInk, loadPhoto, pageJPEG, sheetOf, writingSheet } from "./photo";
 import { newId } from "./store";
-import { allSentences, matchScore, toParagraphs } from "./text";
-import type { Essay, Mark, MarkKind, Paragraph, Plain } from "./types";
+import { allSentences, matchScore, toParagraphs, words } from "./text";
+import type { Essay, Mark, MarkKind, Paragraph, Plain, Sentence } from "./types";
 
 export interface ReadMark {
   words: string;
@@ -14,6 +14,8 @@ export interface ReadMark {
   near: string;
   // Every printed phrase the mark may sit on or beside, best first (`near` when empty).
   hints?: string[];
+  // How far down the page's typed text the mark sits, 0 (top) to 1 (bottom), when known.
+  y?: number;
   page: number;
   // Exact sentence, when the source says (a Word comment's anchor).
   sentenceId?: string;
@@ -33,13 +35,26 @@ export function titleOf(paragraphs: readonly Paragraph[]): string {
 const BACK = 0.6;
 const BACK_EACH = 0.05;
 
+// A word or two matches by chance: a hint counts for less the fewer words it has.
+const confidence = (hint: string): number => Math.min(1, words(hint).length / 3);
+// How far, as a share of the page's text, a mark's place down the photo may differ from its sentence's.
+const REACH = 0.07;
+const GUIDE = 0.5;
+
 // For marks in page order, the sentence of each: the choice that best matches what was read beside
-// the mark, with the marks running down the page in step with the sentences. One misread mark can't
-// pull its neighbours off, and a mark nothing was read for follows the one above it.
-export function placeMarks(sentences: readonly { text: string }[], hints: readonly (readonly string[])[]): number[] {
+// the mark and where the mark sits down the page, with the marks running down the page in step with
+// the sentences. One misread mark can't pull its neighbours off, and a mark nothing was read for
+// follows the one above. `at` is the share of the page's text above the middle of each sentence.
+export function placeMarks(sentences: readonly { text: string; at: number }[], hints: readonly (readonly string[])[], ys: readonly (number | undefined)[] = []): number[] {
   const n = sentences.length;
   if (n === 0) return hints.map(() => 0);
-  const fit = hints.map((h) => sentences.map((s) => Math.max(0, ...h.map((t, k) => matchScore(t, s.text) ** 2 * (k === 0 ? 1 : 0.9)))));
+  const fit = hints.map((h, i) =>
+    sentences.map((s) => {
+      const read = Math.max(0, ...h.map((t, k) => (matchScore(t, s.text) * confidence(t)) ** 2 * (k === 0 ? 1 : 0.9)));
+      const y = ys[i];
+      return read + (y === undefined ? 0 : GUIDE * Math.exp(-(((s.at - y) / REACH) ** 2)));
+    }),
+  );
   let value: number[] = (fit[0] ?? []).map((v) => v);
   const from: number[][] = [];
   for (let i = 1; i < hints.length; i++) {
@@ -74,16 +89,31 @@ export function placeMarks(sentences: readonly { text: string }[], hints: readon
 export function pinMarks(paragraphs: readonly Paragraph[], read: readonly ReadMark[]): Mark[] {
   const sentences = allSentences(paragraphs);
   const order = new Map(sentences.map((s, i) => [s.id, i]));
-  const body = (page: number): typeof sentences => {
+  const isHeading = (s: Sentence): boolean => paragraphs.find((p) => p.sentences.includes(s))?.heading === true;
+  // The sentences a mark may sit on, each with the share of the page's text above its middle (a
+  // heading line counts as one full line).
+  const body = (page: number): { id: string; text: string; at: number }[] => {
     const own = sentences.filter((s) => s.page === page);
-    const text = own.filter((s) => !paragraphs.find((p) => p.sentences.includes(s))?.heading);
-    return text.length > 0 ? text : own;
+    const size = (s: Sentence): number => (isHeading(s) ? 90 : s.text.length);
+    const total = own.reduce((t, s) => t + size(s), 0);
+    let before = 0;
+    const placed = own.map((s) => {
+      const at = total === 0 ? 0 : (before + size(s) / 2) / total;
+      before += size(s);
+      return { id: s.id, text: s.text, at, heading: isHeading(s) };
+    });
+    const text = placed.filter((s) => !s.heading);
+    return (text.length > 0 ? text : placed).map(({ id, text: t, at }) => ({ id, text: t, at }));
   };
   const chosen = new Map<number, string>();
   for (const page of new Set(read.map((m) => m.page))) {
     const here = read.map((m, i) => ({ m, i })).filter(({ m }) => m.page === page && m.sentenceId === undefined);
     const own = body(page);
-    placeMarks(own, here.map(({ m }) => (m.hints !== undefined && m.hints.length > 0 ? m.hints : [m.near]))).forEach((at, k) => {
+    placeMarks(
+      own,
+      here.map(({ m }) => (m.hints !== undefined && m.hints.length > 0 ? m.hints : [m.near])),
+      here.map(({ m }) => m.y),
+    ).forEach((at, k) => {
       const id = own[at]?.id;
       const item = here[k];
       if (id !== undefined && item !== undefined) chosen.set(item.i, id);
@@ -154,7 +184,9 @@ export async function scanPhotos(files: readonly File[], progress: (page: number
       for (const [g, r] of reads.entries()) {
         const text = words[k + g] ?? "";
         if (text === "" || r.near === "") continue;
-        found.push({ words: snapMark(text, r.kind, r.hints.join(" ")), kind: r.kind, near: r.near, hints: r.hints, page: i + 1 });
+        const box = ink.marks[k + g]?.core;
+        const y = box !== undefined && ink.text !== undefined && ink.text.y1 > ink.text.y0 ? Math.min(1, Math.max(0, ((box.y0 + box.y1) / 2 - ink.text.y0) / (ink.text.y1 - ink.text.y0))) : undefined;
+        found.push({ words: snapMark(text, r.kind, r.hints.join(" ")), kind: r.kind, near: r.near, hints: r.hints, ...(y === undefined ? {} : { y }), page: i + 1 });
       }
     }
     if (crops.length === 0) found.push(...(await readWholePage(image)).map((m) => ({ ...m, page: i + 1 })));

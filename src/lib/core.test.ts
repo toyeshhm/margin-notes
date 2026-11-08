@@ -30,12 +30,14 @@ test("a mark finds its sentence even when the copy fixed a misspelling", () => {
 test("marks are numbered in reading order of their sentences", () => {
   const paragraphs = toParagraphs("One sentence here. Two sentence here. Three sentence here.", 1);
   const marks = pinMarks(paragraphs, [
-    { words: "awk", kind: "margin", near: "Two sentence", page: 1 },
-    { words: "wc", kind: "circle", near: "One sentence", page: 1 },
+    { words: "wc", kind: "circle", near: "One sentence here", page: 1 },
+    { words: "awk", kind: "margin", near: "Two sentence here", page: 1 },
+    { words: "trans", kind: "margin", near: "Two sentence here", page: 1, sentenceId: "s0" },
   ]);
   expect(marks.map((m) => [m.n, m.words])).toEqual([
     [1, "wc"],
-    [2, "awk"],
+    [2, "trans"],
+    [3, "awk"],
   ]);
 });
 
@@ -89,14 +91,19 @@ test("handwriting read a letter off snaps to the marking key", () => {
 
 test("marks run down the page with the sentences: a weakly read mark stays in step with the one above", () => {
   const sentences = [
-    { text: "One sentence about alarms and mornings." },
-    { text: "Two sentence about the bus and the bell." },
-    { text: "Three sentence about sleep and melatonin." },
-    { text: "Four sentence about grades and sports." },
+    { text: "One sentence about alarms and mornings.", at: 0.1 },
+    { text: "Two sentence about the bus and the bell.", at: 0.35 },
+    { text: "Three sentence about sleep and melatonin.", at: 0.6 },
+    { text: "Four sentence about grades and sports.", at: 0.85 },
   ];
   // The second mark was read beside the wrong words (part of the last sentence's), the others are clear.
   expect(placeMarks(sentences, [["alarms and mornings"], ["grades and zebras"], ["sleep and melatonin"], ["grades and sports"]])).toEqual([0, 0, 2, 3]);
   // Nothing read for the second mark: it stays with the one above.
   expect(placeMarks(sentences, [["the bus and the bell"], []])).toEqual([1, 1]);
   expect(placeMarks([], [["x"]])).toEqual([0]);
+  // Read beside words that match two sentences, the mark's place down the page says which.
+  expect(placeMarks(sentences, [["sentence about"]], [0.62])).toEqual([2]);
+  expect(placeMarks(sentences, [["sentence about"]], [0.12])).toEqual([0]);
+  // A single word is weak: the three-word reading beats it.
+  expect(placeMarks(sentences, [["sports", "Three sentence about"]])).toEqual([2]);
 });
