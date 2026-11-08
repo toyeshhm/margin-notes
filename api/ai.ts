@@ -41,7 +41,7 @@ const GROQ: Host = {
   name: "groq",
   url: "https://api.groq.com/openai/v1/chat/completions",
   key: (env) => env.GROQ_API_KEY,
-  models: { [SCOUT]: ["qwen/qwen3.8-27b"], [LLAMA]: ["openai/gpt-oss-120b"] },
+  models: { [SCOUT]: ["qwen/qwen3.8-27b"], [LLAMA]: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"] },
   schemaInPrompt: false,
 };
 
@@ -51,7 +51,7 @@ const NIM: Host = {
   key: (env) => env.NVIDIA_API_KEY,
   models: {
     [SCOUT]: ["meta/llama-3.2-90b-vision-instruct", "nvidia/nemotron-3.5-super-vl-120b-a12b", "google/gemma-4-31b-it"],
-    [LLAMA]: ["openai/gpt-oss-20b", "nvidia/llama-3.1-nemotron-70b-instruct"],
+    [LLAMA]: ["meta/llama-3.2-90b-vision-instruct", "openai/gpt-oss-20b"],
   },
   schemaInPrompt: true,
 };
