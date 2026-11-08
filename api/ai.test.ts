@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { BadRequest, hostsFor, jsonIn, readJSON, toGroq } from "./ai";
+import { BadRequest, dailyLimit, hostsFor, jsonIn, readJSON, toGroq } from "./ai";
 
 function chunked(parts: string[]): Request {
   const encoder = new TextEncoder();
@@ -44,4 +44,11 @@ test("pictures go to NVIDIA first and plain text to Groq first", () => {
   const picture = { messages: [{ role: "user", content: [{ type: "image_url", image_url: { url: "data:image/png;base64,AA" } }] }] };
   expect(hostsFor(picture).map((h) => h.name)).toEqual(["nvidia", "groq"]);
   expect(hostsFor({ messages: [{ role: "user", content: "hi" }] }).map((h) => h.name)).toEqual(["groq", "nvidia"]);
+});
+
+test("a per-minute 429 is told apart from a daily one, so only a spent day says the allowance is used up", () => {
+  expect(dailyLimit("Rate limit reached for model `openai/gpt-oss-120b` on tokens per minute (TPM): Limit 8000, Used 7900")).toBe(false);
+  expect(dailyLimit("Rate limit reached for model `qwen/qwen3.8-27b` on tokens per day (TPD): Limit 500000")).toBe(true);
+  expect(dailyLimit("Rate limit reached on requests per day (RPD): Limit 1000")).toBe(true);
+  expect(dailyLimit("Too Many Requests")).toBe(false);
 });

@@ -11,13 +11,16 @@ import type { Env } from "../worker";
 import {
   askJSON,
   BadRequest,
+  cached,
   embed,
   failure,
-  json,
   LLAMA,
   readJSON,
   str,
 } from "./ai";
+
+// Part of every cached check's key: change it whenever the prompt or the models below change, so old answers aren't reused.
+const PROMPT_VERSION = 1;
 
 interface Comment {
   n: number;
@@ -84,116 +87,119 @@ export const POST = async (request: Request, env: Env): Promise<Response> => {
     if (old.length === 0 || comments.length === 0)
       throw new BadRequest("This essay has no comments to check.");
 
-    const pairs = (list: { text: string }[]): string[] =>
-      list.slice(0, -1).map((s, i) => `${s.text} ${list[i + 1]?.text ?? ""}`);
-    const texts = [
-      ...old.map((s) => s.text),
-      ...pairs(old),
-      ...fresh.map((s) => s.text),
-      ...pairs(fresh),
-    ];
-    const v = await embed(env, texts);
-    const O = old.length;
-    const N = fresh.length;
-    const oldV = v.slice(0, O);
-    const oldPairV = v.slice(O, O + O - 1);
-    const newV = v.slice(2 * O - 1, 2 * O - 1 + N);
-    const newPairV = v.slice(2 * O - 1 + N);
-    const grid = (rows: number[][], cols: number[][]): number[][] =>
-      rows.map((a) => cols.map((b) => cosine(a, b)));
-    const matched = align(
-      {
-        one: grid(oldV, newV),
-        split: grid(oldV, newPairV),
-        merge: grid(oldPairV, newV),
-      },
-      O,
-      N,
-    );
-
-    // Three at a time: asked all at once, the free hosts' per-minute limits refuse most of them.
-    const judge = async (c: Comment): Promise<Verdict> => {
-      const i = old.findIndex((s) => s.id === c.sentenceId);
-      const after = i >= 0 ? (matched[i] ?? []) : [];
-      const base = {
-        n: c.n,
-        after: after.map((j) => fresh[j]?.text ?? ""),
-        quoteNotFound: false,
-      };
-      if (after.length === 0)
-        return { ...base, ticked: true, removed: true, quote: "", reason: "" };
-      const from = Math.max(0, Math.min(...after) - 2);
-      const to = Math.min(N, Math.max(...after) + 3);
-      const around = fresh
-        .slice(from, to)
-        .map((s) => `${s.startsParagraph ? "\n¶ " : ""}${s.text}`)
-        .join(" ")
-        .trim();
-      const ask = [
-        `Teacher's comment: "${c.words}"`,
-        `What it asks for: ${c.meaning}`,
-        `The marked sentence in the first draft: "${old[i]?.text ?? ""}"`,
-        i > 0
-          ? `The sentence before it in the first draft: "${old[i - 1]?.text ?? ""}"`
-          : "",
-        `The new version of the marked sentence: "${base.after.join(" ")}"`,
-        `The revision around it (¶ starts a paragraph; never copy the ¶):\n${around}`,
-        "",
-        "answered: true only if the revision does what the comment asks.",
-        "quote: if answered, the new sentence (or the words) from the revision that answer it, copied character for character. Otherwise an empty string.",
-        "reason: if not answered, one sentence to the student saying what is still missing, without writing it for them. Otherwise an empty string.",
-      ]
-        .filter((line) => line !== "")
-        .join("\n");
-      const raw = record(
-        await askJSON(
-          env,
-          LLAMA,
-          [
-            { role: "system", content: SYSTEM },
-            { role: "user", content: ask },
-          ],
-          SCHEMA,
-          300,
-        ),
+    // Checking the same comments against the same revision again costs no model call.
+    return await cached(env, "check_cache", { v: PROMPT_VERSION, old, draft, comments }, async () => {
+      const pairs = (list: { text: string }[]): string[] =>
+        list.slice(0, -1).map((s, i) => `${s.text} ${list[i + 1]?.text ?? ""}`);
+      const texts = [
+        ...old.map((s) => s.text),
+        ...pairs(old),
+        ...fresh.map((s) => s.text),
+        ...pairs(fresh),
+      ];
+      const v = await embed(env, texts);
+      const O = old.length;
+      const N = fresh.length;
+      const oldV = v.slice(0, O);
+      const oldPairV = v.slice(O, O + O - 1);
+      const newV = v.slice(2 * O - 1, 2 * O - 1 + N);
+      const newPairV = v.slice(2 * O - 1 + N);
+      const grid = (rows: number[][], cols: number[][]): number[][] =>
+        rows.map((a) => cols.map((b) => cosine(a, b)));
+      const matched = align(
+        {
+          one: grid(oldV, newV),
+          split: grid(oldV, newPairV),
+          merge: grid(oldPairV, newV),
+        },
+        O,
+        N,
       );
-      const verdict = {
-        answered: raw["answered"] === true,
-        quote: str(raw["quote"], 1000).replace(/^¶\s*/, "").trim(),
-      };
-      const ticked = quoteCheck(verdict, draft);
-      const reason = str(raw["reason"], 500).trim();
-      if (ticked)
-        return {
-          ...base,
-          ticked,
-          removed: false,
-          quote: verdict.quote,
-          reason: "",
+
+      // Six at a time: asked all at once, the free hosts' per-minute limits refuse most of them.
+      const judge = async (c: Comment): Promise<Verdict> => {
+        const i = old.findIndex((s) => s.id === c.sentenceId);
+        const after = i >= 0 ? (matched[i] ?? []) : [];
+        const base = {
+          n: c.n,
+          after: after.map((j) => fresh[j]?.text ?? ""),
+          quoteNotFound: false,
         };
-      if (verdict.answered)
+        if (after.length === 0)
+          return { ...base, ticked: true, removed: true, quote: "", reason: "" };
+        const from = Math.max(0, Math.min(...after) - 2);
+        const to = Math.min(N, Math.max(...after) + 3);
+        const around = fresh
+          .slice(from, to)
+          .map((s) => `${s.startsParagraph ? "\n¶ " : ""}${s.text}`)
+          .join(" ")
+          .trim();
+        const ask = [
+          `Teacher's comment: "${c.words}"`,
+          `What it asks for: ${c.meaning}`,
+          `The marked sentence in the first draft: "${old[i]?.text ?? ""}"`,
+          i > 0
+            ? `The sentence before it in the first draft: "${old[i - 1]?.text ?? ""}"`
+            : "",
+          `The new version of the marked sentence: "${base.after.join(" ")}"`,
+          `The revision around it (¶ starts a paragraph; never copy the ¶):\n${around}`,
+          "",
+          "answered: true only if the revision does what the comment asks.",
+          "quote: if answered, the new sentence (or the words) from the revision that answer it, copied character for character. Otherwise an empty string.",
+          "reason: if not answered, one sentence to the student saying what is still missing, without writing it for them. Otherwise an empty string.",
+        ]
+          .filter((line) => line !== "")
+          .join("\n");
+        const raw = record(
+          await askJSON(
+            env,
+            LLAMA,
+            [
+              { role: "system", content: SYSTEM },
+              { role: "user", content: ask },
+            ],
+            SCHEMA,
+            300,
+          ),
+        );
+        const verdict = {
+          answered: raw["answered"] === true,
+          quote: str(raw["quote"], 1000).replace(/^¶\s*/, "").trim(),
+        };
+        const ticked = quoteCheck(verdict, draft);
+        const reason = str(raw["reason"], 500).trim();
+        if (ticked)
+          return {
+            ...base,
+            ticked,
+            removed: false,
+            quote: verdict.quote,
+            reason: "",
+          };
+        if (verdict.answered)
+          return {
+            ...base,
+            ticked: false,
+            removed: false,
+            quote: verdict.quote,
+            reason: "The quote for this tick isn't in your draft word for word.",
+            quoteNotFound: true,
+          };
         return {
           ...base,
           ticked: false,
           removed: false,
-          quote: verdict.quote,
-          reason: "The quote for this tick isn't in your draft word for word.",
-          quoteNotFound: true,
+          quote: "",
+          reason: reason || "This comment isn't answered yet.",
         };
-      return {
-        ...base,
-        ticked: false,
-        removed: false,
-        quote: "",
-        reason: reason || "This comment isn't answered yet.",
       };
-    };
-    const verdicts: Verdict[] = [];
-    for (let k = 0; k < comments.length; k += 6)
-      verdicts.push(
-        ...(await Promise.all(comments.slice(k, k + 6).map(judge))),
-      );
-    return json({ verdicts });
+      const verdicts: Verdict[] = [];
+      for (let k = 0; k < comments.length; k += 6)
+        verdicts.push(
+          ...(await Promise.all(comments.slice(k, k + 6).map(judge))),
+        );
+      return { verdicts };
+    });
   } catch (error) {
     return failure(error);
   }

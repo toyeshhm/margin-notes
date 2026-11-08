@@ -5,7 +5,7 @@ import type { PageScan, Plain, SheetRead, Verdict } from "./types";
 
 export class ApiError extends Error {
   constructor(
-    readonly kind: "allowance" | "bad-request" | "not-found" | "failed" | "offline",
+    readonly kind: "allowance" | "busy" | "bad-request" | "not-found" | "failed" | "offline",
     message: string,
   ) {
     super(message);
@@ -24,7 +24,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     const kind = body["error"];
     const message = typeof body["message"] === "string" ? body["message"] : "Something went wrong. Try again in a minute.";
-    throw new ApiError(kind === "allowance" || kind === "bad-request" || kind === "not-found" ? kind : "failed", message);
+    throw new ApiError(kind === "allowance" || kind === "busy" || kind === "bad-request" || kind === "not-found" ? kind : "failed", message);
   }
   return body as T;
 }
@@ -55,11 +55,19 @@ export async function explain(marks: { n: number; words: string; sentence: strin
   return new Map(plains.map((p) => [p.n, { meaning: p.meaning, todo: p.todo }]));
 }
 
-export async function check(body: {
+export interface CheckBody {
   sentences: { id: string; text: string }[];
   draft: string;
   comments: { n: number; words: string; meaning: string; sentenceId: string }[];
-}): Promise<Verdict[]> {
+}
+
+// A sample's own revision, unchanged, on its unchanged comments, is answered from a saved real run of the check
+// (public/samples/<id>-check-<k>.json) with no model call. Anything else, or a saved run that won't load, goes live.
+export async function check(body: CheckBody, saved?: string): Promise<Verdict[]> {
+  if (saved !== undefined) {
+    const kept = (await fetch(saved).then((r) => (r.ok ? r.json() : undefined)).catch(() => undefined)) as { request?: unknown; verdicts?: Verdict[] } | undefined;
+    if (kept?.verdicts !== undefined && JSON.stringify(kept.request) === JSON.stringify(body)) return kept.verdicts;
+  }
   const { verdicts } = await call<{ verdicts: Verdict[] }>("/api/check", post(body));
   return verdicts;
 }

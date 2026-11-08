@@ -31,7 +31,7 @@ function Problem({ status }: { status: Status }): React.JSX.Element | null {
 
 function errorStatus(error: unknown): Status {
   if (error instanceof NotAnEssay) return { kind: "error", message: error.message, allowance: false };
-  if (error instanceof ApiError) return { kind: "error", message: error.message, allowance: error.kind === "allowance" };
+  if (error instanceof ApiError) return { kind: "error", message: error.message, allowance: error.kind === "allowance" || error.kind === "busy" };
   log("error", "scan failed", { error: String(error) });
   return { kind: "error", message: error instanceof Error ? error.message : "That didn't work. Try again.", allowance: false };
 }

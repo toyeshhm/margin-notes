@@ -1,6 +1,6 @@
 // Free hosted models, tried in order, then Workers AI through the Worker's AI binding: pictures go to NVIDIA NIM first
 // (NVIDIA_API_KEY) and then Groq (GROQ_API_KEY); plain text goes to Groq, then NIM. Also the JSON answers, and the one
-// failure people meet on the free plan, the day's allowance running out.
+// failures people meet on the free plan: every model busy for a minute, or every day's allowance spent.
 
 import { log } from "../src/log";
 import type { Env } from "../worker";
@@ -10,6 +10,13 @@ export const LLAMA = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 export const BGE = "@cf/baai/bge-m3";
 
 export class AllowanceUsed extends Error {}
+// Some model refused for a reason that passes within a minute (a per-minute limit, a timeout, an outage).
+export class Busy extends Error {}
+
+// A 429 whose text says it is the day's limit, not the minute's.
+export function dailyLimit(text: string): boolean {
+  return /per day|daily|\b(RPD|TPD)\b/i.test(text);
+}
 
 export function json(body: unknown, status = 200): Response {
   return Response.json(body, { status });
@@ -18,6 +25,9 @@ export function json(body: unknown, status = 200): Response {
 export function failure(error: unknown): Response {
   if (error instanceof AllowanceUsed) {
     return json({ error: "allowance", message: "Today's free reading allowance is used up. It resets at midnight UTC." }, 429);
+  }
+  if (error instanceof Busy) {
+    return json({ error: "busy", message: "The reading models are busy right now. Try again in a minute." }, 503);
   }
   if (error instanceof BadRequest) return json({ error: "bad-request", message: error.message }, 400);
   const message = error instanceof Error ? error.message : String(error);
@@ -95,9 +105,9 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// One call to one hosted model, or undefined when it can't answer (no key, 429 after a wait, 4xx/5xx, network):
-// the caller then tries the next.
-async function chat(host: Host, key: string, model: string, input: Record<string, unknown>, tries: number): Promise<{ response: string } | undefined> {
+// One call to one hosted model, or why it can't answer: "day" when it says its daily limit is spent, "busy" for
+// anything else (429 after a wait, 4xx/5xx, network). The caller then tries the next.
+async function chat(host: Host, key: string, model: string, input: Record<string, unknown>, tries: number): Promise<{ response: string } | "day" | "busy"> {
   const body = JSON.stringify(toGroq(model, input, host.schemaInPrompt));
   const started = Date.now();
   for (let attempt = 0; attempt < tries; attempt++) {
@@ -122,19 +132,21 @@ async function chat(host: Host, key: string, model: string, input: Record<string
         const content = out.choices?.[0]?.message?.content;
         if (typeof content === "string") return { response: host.schemaInPrompt && input["response_format"] !== undefined ? jsonIn(content) : content };
         log("warn", "model gave no text", { host: host.name, model });
-        return undefined;
+        return "busy";
       }
+      const said = res.status === 429 ? await Promise.race([res.text(), stalled]).catch(() => "") : "";
       clearTimeout(timer);
-      log("warn", "model refused", { host: host.name, status: res.status, model });
+      log("warn", "model refused", { host: host.name, status: res.status, model, daily: dailyLimit(said) });
+      if (dailyLimit(said)) return "day";
       const wait = Math.min(Number(res.headers.get("retry-after") ?? "6") + 1, 40);
-      if ((res.status !== 429 && res.status !== 503) || attempt === tries - 1 || Date.now() - started + wait * 1000 > BUDGET_MS) return undefined;
+      if ((res.status !== 429 && res.status !== 503) || attempt === tries - 1 || Date.now() - started + wait * 1000 > BUDGET_MS) return "busy";
       await sleep(wait * 1000);
     } catch (error) {
       log("warn", "model unreachable", { host: host.name, error: error instanceof Error ? error.message : String(error) });
-      return undefined;
+      return "busy";
     }
   }
-  return undefined;
+  return "busy";
 }
 
 function hasPicture(input: Record<string, unknown>): boolean {
@@ -146,30 +158,45 @@ export function hostsFor(input: Record<string, unknown>): Host[] {
   return hasPicture(input) ? [NIM, GROQ] : [GROQ, NIM];
 }
 
-async function hosted(env: Env, model: string, input: Record<string, unknown>): Promise<{ response: string } | undefined> {
+// The first hosted answer, or "day" when every hosted model said its daily limit is spent (or none has a key).
+async function hosted(env: Env, model: string, input: Record<string, unknown>): Promise<{ response: string } | "day" | "busy"> {
   const options = hostsFor(input).flatMap((host) => {
     const key = host.key(env);
     return key === undefined ? [] : (host.models[model] ?? []).map((hostModel) => ({ host, key, hostModel }));
   });
+  let allDay = true;
   for (const [k, { host, key, hostModel }] of options.entries()) {
     // Only the last option is waited on when rate-limited; the others are skipped past at once.
     const answer = await chat(host, key, hostModel, input, k === options.length - 1 ? TRIES : 1);
-    if (answer !== undefined) return answer;
+    if (typeof answer === "object") return answer;
+    if (answer === "busy") allDay = false;
   }
-  return undefined;
+  return allDay ? "day" : "busy";
 }
 
 export async function run(env: Env, model: string, input: Record<string, unknown>): Promise<unknown> {
   const fromHost = await hosted(env, model, input);
-  if (fromHost !== undefined) return fromHost;
+  if (typeof fromHost === "object") return fromHost;
   try {
     return await env.AI.run(model, input);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    // 4006: the account's daily free Neurons are used up.
-    if (message.includes("4006") || /daily free allocation|neurons/i.test(message)) throw new AllowanceUsed(message);
+    // 4006: the account's daily free Neurons are used up. That is the day's end only if every host said the same.
+    if (message.includes("4006") || /daily free allocation|neurons/i.test(message)) throw fromHost === "day" ? new AllowanceUsed(message) : new Busy(message);
     throw error;
   }
+}
+
+// A model answer kept by a hash of what was asked, in `table`, so asking the same thing twice costs one call.
+export async function cached(env: Env, table: "scan_cache" | "check_cache", key: unknown, read: () => Promise<unknown>): Promise<Response> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(key)));
+  const hash = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  await env.DB.prepare(`create table if not exists ${table} (hash text primary key, result text not null, created_at text not null)`).run();
+  const hit = await env.DB.prepare(`select result from ${table} where hash = ?`).bind(hash).first<{ result: string }>();
+  if (hit !== null) return new Response(hit.result, { headers: { "content-type": "application/json" } });
+  const result = JSON.stringify(await read());
+  await env.DB.prepare(`insert or ignore into ${table} (hash, result, created_at) values (?, ?, ?)`).bind(hash, result, new Date().toISOString()).run();
+  return new Response(result, { headers: { "content-type": "application/json" } });
 }
 
 // Ask a chat model for JSON matching `schema`; returns the parsed object.
@@ -236,10 +263,16 @@ export async function embed(env: Env, texts: string[]): Promise<number[][]> {
     if (hostedVectors !== undefined) return hostedVectors;
   }
   const vectors: number[][] = [];
-  for (let k = 0; k < texts.length; k += 50) {
-    const out = (await run(env, BGE, { text: texts.slice(k, k + 50) })) as { data?: unknown };
-    if (!Array.isArray(out.data)) throw new Error("no embeddings from bge-m3");
-    vectors.push(...(out.data as number[][]));
+  try {
+    for (let k = 0; k < texts.length; k += 50) {
+      const out = (await run(env, BGE, { text: texts.slice(k, k + 50) })) as { data?: unknown };
+      if (!Array.isArray(out.data)) throw new Error("no embeddings from bge-m3");
+      vectors.push(...(out.data as number[][]));
+    }
+  } catch (error) {
+    // NVIDIA's refusal above has no daily limit in it, so with its key the wait is a minute, not a day.
+    if (error instanceof AllowanceUsed && env.NVIDIA_API_KEY !== undefined) throw new Busy(error.message);
+    throw error;
   }
   return vectors;
 }

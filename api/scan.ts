@@ -3,12 +3,12 @@
 // { image, whole: true } -> { marks } (a page with no ink found in the browser).
 // A vision model reads one photo of a typed page. The browser finds each patch of the teacher's ink
 // and sends a close-up of it with a box drawn round it; Scout reads the page's printed text from the
-// whole photo and each mark from its close-up. Nothing is kept.
+// whole photo and each mark from its close-up. The photos are never kept; what was read is, by a hash of the request.
 
 import { markingKey, snapMark } from "../src/lib/markingKey";
 import { MARK_KINDS, type MarkKind, type PageScan, type SheetRead } from "../src/lib/types";
 import type { Env } from "../worker";
-import { askJSON, BadRequest, failure, readJSON, run, SCOUT, str } from "./ai";
+import { askJSON, BadRequest, cached, failure, readJSON, run, SCOUT, str } from "./ai";
 
 const SYSTEM = `You read phone photos of typed school essays that a teacher has marked by hand in pen.
 You copy what is there and never add, fix or invent anything.`;
@@ -38,6 +38,9 @@ const WRITING_ASK = (count: number): string => `This picture stacks ${String(cou
 Each close-up sits under a dark bar labelled MARK 1, MARK 2 and so on and shows one mark: its handwriting, sometimes ringed or underlined, sometimes with a few printed (typed, black) letters at the edge.
 Answer as JSON with one entry per close-up, in order, each with n (the number on its bar) and words: only the red handwritten letters or symbol, exactly as written. Never printed letters, and never a ring, line or bracket on its own.
 Teachers' shorthand is usually one of: ${VOCABULARY}, or a word written over a ^ (answer "^ " and the word). Read each close-up on its own: do not copy the answer of another close-up.`;
+
+// Part of every cached read's key: change it whenever a prompt or the vision models change, so old reads aren't reused.
+const SCAN_VERSION = 2;
 
 const INK_KINDS = MARK_KINDS.filter((k) => k !== "comment");
 
@@ -167,24 +170,6 @@ async function readWholePage(env: Env, page: string): Promise<PageScan["marks"]>
   });
 }
 
-const CACHE_TABLE = "create table if not exists scan_cache (hash text primary key, result text not null, created_at text not null)";
-
-async function fingerprint(body: Record<string, unknown>): Promise<string> {
-  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(body)));
-  return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-// The same photo (or close-up) read twice costs one read: results are kept by a hash of the request.
-async function cached(env: Env, body: Record<string, unknown>, read: () => Promise<Record<string, unknown>>): Promise<Response> {
-  const hash = await fingerprint(body);
-  await env.DB.prepare(CACHE_TABLE).run();
-  const hit = await env.DB.prepare("select result from scan_cache where hash = ?").bind(hash).first<{ result: string }>();
-  if (hit !== null) return new Response(hit.result, { headers: { "content-type": "application/json" } });
-  const result = JSON.stringify(await read());
-  await env.DB.prepare("insert or ignore into scan_cache (hash, result, created_at) values (?, ?, ?)").bind(hash, result, new Date().toISOString()).run();
-  return new Response(result, { headers: { "content-type": "application/json" } });
-}
-
 export const POST = async (request: Request, env: Env): Promise<Response> => {
   try {
     const body = record(await readJSON(request, 12_000_000));
@@ -192,18 +177,18 @@ export const POST = async (request: Request, env: Env): Promise<Response> => {
       const inMargin = (Array.isArray(body["inMargin"]) ? (body["inMargin"] as unknown[]) : []).slice(0, 8).map((m) => m === true);
       if (inMargin.length === 0) throw new BadRequest("No marks to read.");
       const sheet = image(body["sheet"]);
-      return await cached(env, body, async () => ({ marks: await readSheet(env, sheet, inMargin) }));
+      return await cached(env, "scan_cache", { v: SCAN_VERSION, body }, async () => ({ marks: await readSheet(env, sheet, inMargin) }));
     }
     if (body["writing"] !== undefined) {
       const count = Math.min(12, Math.max(1, Math.round(Number(body["count"]) || 1)));
       const writing = image(body["writing"]);
-      return await cached(env, body, async () => ({ words: await readWriting(env, writing, count) }));
+      return await cached(env, "scan_cache", { v: SCAN_VERSION, body }, async () => ({ words: await readWriting(env, writing, count) }));
     }
     const page = image(body["image"]);
     if (body["whole"] === true) {
-      return await cached(env, body, async () => ({ marks: (await readWholePage(env, page)).filter((m) => m.words.trim() !== "" && m.near !== "") }));
+      return await cached(env, "scan_cache", { v: SCAN_VERSION, body }, async () => ({ marks: (await readWholePage(env, page)).filter((m) => m.words.trim() !== "" && m.near !== "") }));
     }
-    return await cached(env, body, async () => {
+    return await cached(env, "scan_cache", { v: SCAN_VERSION, body }, async () => {
       const text = await readText(env, page);
       return text === undefined ? { isEssay: false, text: "" } : { isEssay: true, text };
     });

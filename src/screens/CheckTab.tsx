@@ -76,11 +76,15 @@ export default function CheckTab({ essay }: { essay: Essay }): React.JSX.Element
     setBusy(true);
     setProblem("");
     try {
-      const verdicts = await check({
-        sentences: allSentences(essay.paragraphs).map((s) => ({ id: s.id, text: s.text })),
-        draft,
-        comments: essay.marks.map((m) => ({ n: m.n, words: m.words, meaning: m.plain === undefined ? m.words : `${m.plain.meaning} ${m.plain.todo}`, sentenceId: m.sentenceId })),
-      });
+      const k = sample?.revisions.indexOf(draft) ?? -1;
+      const verdicts = await check(
+        {
+          sentences: allSentences(essay.paragraphs).map((s) => ({ id: s.id, text: s.text })),
+          draft,
+          comments: essay.marks.map((m) => ({ n: m.n, words: m.words, meaning: m.plain === undefined ? m.words : `${m.plain.meaning} ${m.plain.todo}`, sentenceId: m.sentenceId })),
+        },
+        sample !== undefined && k >= 0 ? `/samples/${sample.id}-check-${String(k + 1)}.json` : undefined,
+      );
       const n = essay.rounds.length + 1;
       updateEssay(essay.id, (e) => ({ ...e, rounds: [...e.rounds, { n, at: new Date().toISOString(), draft, verdicts }] }));
       setViewing(n);
