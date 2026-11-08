@@ -66,3 +66,11 @@ export interface PageScan {
   text: string;
   marks: { words: string; kind: MarkKind; near: string }[];
 }
+
+// What /api/scan answers for one close-up on a sheet: how the mark was made, and the printed
+// phrases it sits on or beside (`near` is the best; `hints` are all of them, best first).
+export interface SheetRead {
+  kind: MarkKind;
+  near: string;
+  hints: string[];
+}

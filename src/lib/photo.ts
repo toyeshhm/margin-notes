@@ -9,6 +9,13 @@ export interface Box {
   y1: number;
 }
 
+// One patch of the teacher's ink: `box` takes in the pale strokes that go with it (a ring or an
+// underline), `core` is only the written part.
+export interface InkMark {
+  box: Box;
+  core: Box;
+}
+
 export interface MarkCrop {
   canvas: HTMLCanvasElement;
   // The mark sits outside the typed text block, in a margin.
@@ -90,7 +97,7 @@ function components(mask: Uint8Array, w: number, h: number, rx: number, ry: numb
 
 // Boxes round each patch of coloured ink, in photo px, top to bottom. Works on a copy scaled so
 // the page is about 325 cells wide; strokes closer than a few cells join into one mark.
-export function findInk(photo: ImageBitmap): { marks: Box[]; text: Box | undefined } {
+export function findInk(photo: ImageBitmap): { marks: InkMark[]; text: Box | undefined } {
   const k = Math.max(1, photo.width / 325);
   const w = Math.round(photo.width / k);
   const h = Math.round(photo.height / k);
@@ -137,6 +144,7 @@ export function findInk(photo: ImageBitmap): { marks: Box[]; text: Box | undefin
   // written mark on the same line, so the close-up shows which words it is about.
   const written = components(ink, w, h, 5, 2).filter((c) => c.n >= 12 && c.y1 - c.y0 >= 2);
   const strokes = components(stroke, w, h, 2, 1).filter((c) => c.n >= 6 && !written.some((m) => overlaps(m, c)));
+  const cores = written.map((c) => ({ x0: c.x0, y0: c.y0, x1: c.x1, y1: c.y1 }));
   const line = h * 0.025;
   for (const st of strokes) {
     const sameLine = written.filter((m) => st.y0 < m.y1 + line && st.y1 > m.y0 - line);
@@ -144,8 +152,9 @@ export function findInk(photo: ImageBitmap): { marks: Box[]; text: Box | undefin
     const near = sameLine.sort((p, q) => gap(p) - gap(q))[0];
     if (near !== undefined) Object.assign(near, { x0: Math.min(near.x0, st.x0), y0: Math.min(near.y0, st.y0), x1: Math.max(near.x1, st.x1), y1: Math.max(near.y1, st.y1) });
   }
-  const marks: Box[] = written.map((c) => ({ x0: c.x0 * k, y0: c.y0 * k, x1: (c.x1 + 1) * k, y1: (c.y1 + 1) * k }));
-  marks.sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
+  const scaled = (c: { x0: number; y0: number; x1: number; y1: number }): Box => ({ x0: c.x0 * k, y0: c.y0 * k, x1: (c.x1 + 1) * k, y1: (c.y1 + 1) * k });
+  const marks: InkMark[] = written.map((c, i) => ({ box: scaled(c), core: scaled(cores[i] ?? c) }));
+  marks.sort((a, b) => a.box.y0 - b.box.y0 || a.box.x0 - b.box.x0);
   return { marks: marks.slice(0, 30), text };
 }
 
@@ -187,4 +196,37 @@ export function sheetOf(crops: readonly MarkCrop[], first: number): string {
     y += bar + k.canvas.height;
   }
   return c.toDataURL("image/jpeg", 0.88);
+}
+
+// A tight close-up of only the written part of a mark, no blue box and no neighbours, so the
+// handwriting is read on its own.
+export function cropWriting(photo: ImageBitmap, core: Box, width = 460): HTMLCanvasElement {
+  const padX = Math.max(photo.width * 0.01, (core.x1 - core.x0) * 0.15);
+  const padY = Math.max(photo.height * 0.006, (core.y1 - core.y0) * 0.25);
+  const left = Math.max(0, core.x0 - padX);
+  const top = Math.max(0, core.y0 - padY);
+  const right = Math.min(photo.width, core.x1 + padX);
+  const bottom = Math.min(photo.height, core.y1 + padY);
+  const s = Math.min(width / (right - left), 3);
+  const [c, ctx] = canvas((right - left) * s, (bottom - top) * s);
+  ctx.drawImage(photo, left, top, right - left, bottom - top, 0, 0, c.width, c.height);
+  return c;
+}
+
+// The writing close-ups stacked under numbered bars, like `sheetOf`.
+export function writingSheet(crops: readonly HTMLCanvasElement[], first: number): string {
+  const bar = 36;
+  const width = Math.max(...crops.map((c) => c.width), 300);
+  const [c, ctx] = canvas(width, crops.reduce((h, k) => h + k.height + bar, 0));
+  ctx.fillStyle = "rgb(20, 20, 20)";
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillStyle = "white";
+  ctx.font = "bold 26px sans-serif";
+  let y = 0;
+  for (const [i, k] of crops.entries()) {
+    ctx.fillText(`MARK ${String(first + i)}`, 10, y + 28);
+    ctx.drawImage(k, 0, y + bar);
+    y += bar + k.height;
+  }
+  return c.toDataURL("image/jpeg", 0.9);
 }

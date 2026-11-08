@@ -96,28 +96,31 @@ export function alike(a: string, b: string): boolean {
   return n >= 5 && distance(a, b) <= (n >= 8 ? 2 : 1);
 }
 
+// How much of the typed words `near` a sentence holds, in order, from 0 to 1 (1 when it holds them whole).
+export function matchScore(near: string, sentence: string): number {
+  const target = words(near);
+  if (target.length === 0) return 0;
+  if (normalize(sentence).includes(normalize(near))) return 1;
+  const have = words(sentence);
+  let i = 0;
+  let hits = 0;
+  for (const w of target) {
+    const at = have.findIndex((h, k) => k >= i && alike(h, w));
+    if (at >= 0) {
+      hits++;
+      i = at + 1;
+    }
+  }
+  return hits / target.length;
+}
+
 // The sentence a mark belongs to: the one holding the most of the typed words beside the mark,
 // in order; ties go to the earlier sentence, since a mark beside a line break belongs to its start.
 export function findSentence(near: string, sentences: readonly Sentence[]): Sentence | undefined {
-  const target = words(near);
-  if (target.length === 0) return undefined;
-  const whole = normalize(near);
-  const exact = sentences.find((s) => normalize(s.text).includes(whole));
-  if (exact !== undefined) return exact;
   let best: Sentence | undefined;
   let bestScore = 0;
   for (const s of sentences) {
-    const have = words(s.text);
-    let i = 0;
-    let hits = 0;
-    for (const w of target) {
-      const at = have.findIndex((h, k) => k >= i && alike(h, w));
-      if (at >= 0) {
-        hits++;
-        i = at + 1;
-      }
-    }
-    const score = hits / target.length;
+    const score = matchScore(near, s.text);
     if (score > bestScore) {
       best = s;
       bestScore = score;

@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 
 import { align } from "./align";
-import { pinMarks } from "./build";
+import { pinMarks, placeMarks } from "./build";
 import { isInstruction, quoteCheck } from "./guards";
 import { keyFor, snapMark } from "./markingKey";
 import { findSentence, splitSentences, toParagraphs } from "./text";
@@ -30,12 +30,12 @@ test("a mark finds its sentence even when the copy fixed a misspelling", () => {
 test("marks are numbered in reading order of their sentences", () => {
   const paragraphs = toParagraphs("One sentence here. Two sentence here. Three sentence here.", 1);
   const marks = pinMarks(paragraphs, [
-    { words: "wc", kind: "circle", near: "Three sentence", page: 1 },
-    { words: "awk", kind: "margin", near: "One sentence", page: 1 },
+    { words: "awk", kind: "margin", near: "Two sentence", page: 1 },
+    { words: "wc", kind: "circle", near: "One sentence", page: 1 },
   ]);
   expect(marks.map((m) => [m.n, m.words])).toEqual([
-    [1, "awk"],
-    [2, "wc"],
+    [1, "wc"],
+    [2, "awk"],
   ]);
 });
 
@@ -85,4 +85,18 @@ test("handwriting read a letter off snaps to the marking key", () => {
   expect(snapMark("awk is", "circle", "is a problem")).toBe("awk");
   expect(snapMark("how warm?", "margin", "")).toBe("how warm?");
   expect(keyFor("^ let")?.mark).toBe("^");
+});
+
+test("marks run down the page with the sentences: a weakly read mark stays in step with the one above", () => {
+  const sentences = [
+    { text: "One sentence about alarms and mornings." },
+    { text: "Two sentence about the bus and the bell." },
+    { text: "Three sentence about sleep and melatonin." },
+    { text: "Four sentence about grades and sports." },
+  ];
+  // The second mark was read beside the wrong words (part of the last sentence's), the others are clear.
+  expect(placeMarks(sentences, [["alarms and mornings"], ["grades and zebras"], ["sleep and melatonin"], ["grades and sports"]])).toEqual([0, 0, 2, 3]);
+  // Nothing read for the second mark: it stays with the one above.
+  expect(placeMarks(sentences, [["the bus and the bell"], []])).toEqual([1, 1]);
+  expect(placeMarks([], [["x"]])).toEqual([0]);
 });

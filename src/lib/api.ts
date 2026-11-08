@@ -1,7 +1,7 @@
 // Calls to the Worker. Every failure becomes an ApiError with a message a student can act on.
 
 import type { Note } from "../../api/note";
-import type { PageScan, Plain, Verdict } from "./types";
+import type { PageScan, Plain, SheetRead, Verdict } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -34,9 +34,14 @@ export function readPageText(image: string): Promise<{ isEssay: boolean; text: s
   return call("/api/scan", post({ image }));
 }
 
-export async function readMarks(sheet: string, inMargin: boolean[]): Promise<PageScan["marks"]> {
-  const { marks } = await call<{ marks: PageScan["marks"] }>("/api/scan", post({ sheet, inMargin }));
+export async function readContext(sheet: string, inMargin: boolean[]): Promise<SheetRead[]> {
+  const { marks } = await call<{ marks: SheetRead[] }>("/api/scan", post({ sheet, inMargin }));
   return marks;
+}
+
+export async function readWriting(writing: string, count: number): Promise<string[]> {
+  const { words } = await call<{ words: string[] }>("/api/scan", post({ writing, count }));
+  return words;
 }
 
 export async function readWholePage(image: string): Promise<PageScan["marks"]> {

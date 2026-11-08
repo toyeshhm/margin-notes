@@ -1,17 +1,19 @@
 // Turning what was read into an essay: pages of sentences, each mark pinned to its sentence and
 // numbered in reading order, then plain words for every mark.
 
-import { ApiError, explain, readMarks, readPageText, readWholePage } from "./api";
-import { keyFor } from "./markingKey";
-import { cropMark, findInk, loadPhoto, pageJPEG, sheetOf } from "./photo";
+import { ApiError, explain, readContext, readPageText, readWholePage, readWriting } from "./api";
+import { keyFor, snapMark } from "./markingKey";
+import { cropMark, cropWriting, findInk, loadPhoto, pageJPEG, sheetOf, writingSheet } from "./photo";
 import { newId } from "./store";
-import { allSentences, findSentence, toParagraphs } from "./text";
+import { allSentences, matchScore, toParagraphs } from "./text";
 import type { Essay, Mark, MarkKind, Paragraph, Plain } from "./types";
 
 export interface ReadMark {
   words: string;
   kind: MarkKind;
   near: string;
+  // Every printed phrase the mark may sit on or beside, best first (`near` when empty).
+  hints?: string[];
   page: number;
   // Exact sentence, when the source says (a Word comment's anchor).
   sentenceId?: string;
@@ -26,16 +28,70 @@ export function titleOf(paragraphs: readonly Paragraph[]): string {
   return first.split(/\s+/).slice(0, 6).join(" ").replace(/[.,;:]$/, "");
 }
 
-// Pin each mark to a sentence (on its own page first) and number them in reading order.
+// Going back to an earlier sentence than the mark above costs this much, plus a little for each
+// sentence back: marks come top to bottom, so a reading that jumps back needs strong evidence.
+const BACK = 0.6;
+const BACK_EACH = 0.05;
+
+// For marks in page order, the sentence of each: the choice that best matches what was read beside
+// the mark, with the marks running down the page in step with the sentences. One misread mark can't
+// pull its neighbours off, and a mark nothing was read for follows the one above it.
+export function placeMarks(sentences: readonly { text: string }[], hints: readonly (readonly string[])[]): number[] {
+  const n = sentences.length;
+  if (n === 0) return hints.map(() => 0);
+  const fit = hints.map((h) => sentences.map((s) => Math.max(0, ...h.map((t, k) => matchScore(t, s.text) ** 2 * (k === 0 ? 1 : 0.9)))));
+  let value: number[] = (fit[0] ?? []).map((v) => v);
+  const from: number[][] = [];
+  for (let i = 1; i < hints.length; i++) {
+    const row: number[] = [];
+    const next = sentences.map((_, j) => {
+      let best = Number.NEGATIVE_INFINITY;
+      let at = 0;
+      for (let k = 0; k < n; k++) {
+        const cost = k > j ? BACK + BACK_EACH * (k - j) : 0.001 * (j - k);
+        const v = (value[k] ?? 0) - cost;
+        if (v > best) {
+          best = v;
+          at = k;
+        }
+      }
+      row.push(at);
+      return best + (fit[i]?.[j] ?? 0);
+    });
+    from.push(row);
+    value = next;
+  }
+  let j = value.indexOf(Math.max(...value));
+  const out = new Array<number>(hints.length).fill(0);
+  for (let i = hints.length - 1; i >= 0; i--) {
+    out[i] = j;
+    j = from[i - 1]?.[j] ?? j;
+  }
+  return out;
+}
+
+// Pin each mark to a sentence (on its own page) and number them in reading order.
 export function pinMarks(paragraphs: readonly Paragraph[], read: readonly ReadMark[]): Mark[] {
   const sentences = allSentences(paragraphs);
   const order = new Map(sentences.map((s, i) => [s.id, i]));
+  const body = (page: number): typeof sentences => {
+    const own = sentences.filter((s) => s.page === page);
+    const text = own.filter((s) => !paragraphs.find((p) => p.sentences.includes(s))?.heading);
+    return text.length > 0 ? text : own;
+  };
+  const chosen = new Map<number, string>();
+  for (const page of new Set(read.map((m) => m.page))) {
+    const here = read.map((m, i) => ({ m, i })).filter(({ m }) => m.page === page && m.sentenceId === undefined);
+    const own = body(page);
+    placeMarks(own, here.map(({ m }) => (m.hints !== undefined && m.hints.length > 0 ? m.hints : [m.near]))).forEach((at, k) => {
+      const id = own[at]?.id;
+      const item = here[k];
+      if (id !== undefined && item !== undefined) chosen.set(item.i, id);
+    });
+  }
   const pinned = read.flatMap((m, i) => {
-    const own = sentences.filter((s) => s.page === m.page);
-    const s = m.sentenceId !== undefined ? sentences.find((x) => x.id === m.sentenceId) : (findSentence(m.near, own) ?? findSentence(m.near, sentences));
-    const fallback = own.find((x) => !paragraphs.find((p) => p.sentences.includes(x))?.heading) ?? own[0];
-    const at = s ?? fallback;
-    return at === undefined ? [] : [{ m, i, sentenceId: at.id }];
+    const sentenceId = m.sentenceId ?? chosen.get(i);
+    return sentenceId === undefined || !order.has(sentenceId) ? [] : [{ m, i, sentenceId }];
   });
   pinned.sort((a, b) => (order.get(a.sentenceId) ?? 0) - (order.get(b.sentenceId) ?? 0) || a.i - b.i);
   return pinned.map(({ m, sentenceId }, k) => ({ n: k + 1, words: m.words, kind: m.kind, near: m.near, sentenceId }));
@@ -61,8 +117,9 @@ export async function addPlainWords(paragraphs: readonly Paragraph[], marks: Mar
   });
 }
 
-// Close-ups per request.
+// Close-ups per request: with context (each a wide strip), and of the writing alone (small).
 const SHEET = 4;
+const WRITING_SHEET = 8;
 
 export class NotAnEssay extends Error {}
 
@@ -76,7 +133,8 @@ export async function scanPhotos(files: readonly File[], progress: (page: number
     progress(i + 1, files.length);
     const photo = await loadPhoto(file);
     const ink = findInk(photo);
-    const crops = ink.marks.map((box) => cropMark(photo, box, ink.text));
+    const crops = ink.marks.map(({ box }) => cropMark(photo, box, ink.text));
+    const writing = ink.marks.map(({ core }) => cropWriting(photo, core));
     const image = pageJPEG(photo);
     photos.push(image);
     const scan = await readPageText(image);
@@ -85,10 +143,19 @@ export async function scanPhotos(files: readonly File[], progress: (page: number
     next += allSentences(paras).length;
     paragraphs.push(...paras);
     const found: ReadMark[] = [];
+    const words: string[] = [];
+    for (let k = 0; k < writing.length; k += WRITING_SHEET) {
+      const group = writing.slice(k, k + WRITING_SHEET);
+      words.push(...(await readWriting(writingSheet(group, 1), group.length)));
+    }
     for (let k = 0; k < crops.length; k += SHEET) {
       const group = crops.slice(k, k + SHEET);
-      const marks = await readMarks(sheetOf(group, 1), group.map((c) => c.inMargin));
-      found.push(...marks.map((m) => ({ ...m, page: i + 1 })));
+      const reads = await readContext(sheetOf(group, 1), group.map((c) => c.inMargin));
+      for (const [g, r] of reads.entries()) {
+        const text = words[k + g] ?? "";
+        if (text === "" || r.near === "") continue;
+        found.push({ words: snapMark(text, r.kind, r.hints.join(" ")), kind: r.kind, near: r.near, hints: r.hints, page: i + 1 });
+      }
     }
     if (crops.length === 0) found.push(...(await readWholePage(image)).map((m) => ({ ...m, page: i + 1 })));
     read.push(...found);
