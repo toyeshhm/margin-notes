@@ -230,7 +230,8 @@ a { color: var(--color-ink); }
   .home .mosaic { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 130px 130px; }
   .m-pencil { grid-row: 1; grid-column: 1 / 3; }
   .m-awk { grid-column: 3; grid-row: 1; }
-  .m-awk svg.hand { width: 82%; height: auto; }
+  .m-awk .hand-wrap { width: 84%; }
+  .m-awk svg.hand { width: 100%; height: auto; }
   .m-relief { grid-column: 1 / 3; grid-row: 2; }
   .m-tick { grid-column: 3; grid-row: 2; }
   .m-page, .m-side { display: none; }
