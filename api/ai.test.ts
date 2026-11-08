@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { BadRequest, readJSON, toGroq } from "./ai";
+import { BadRequest, hostsFor, jsonIn, readJSON, toGroq } from "./ai";
 
 function chunked(parts: string[]): Request {
   const encoder = new TextEncoder();
@@ -29,4 +29,19 @@ test("a Workers AI request becomes a Groq one, with the schema wrapped and the m
   const body = toGroq("m", { messages: [], max_tokens: 5, response_format: { type: "json_schema", json_schema: schema } });
   expect(body).toEqual({ model: "m", messages: [], max_tokens: 5, response_format: { type: "json_schema", json_schema: { name: "answer", schema } } });
   expect(toGroq("m", { messages: [] })).toEqual({ model: "m", messages: [] });
+});
+
+test("for NVIDIA the schema goes into the last message, and a reply inside a code fence is cut down to its JSON", () => {
+  const schema = { type: "object" };
+  const body = toGroq("m", { messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }], response_format: { type: "json_schema", json_schema: schema } }, true);
+  expect(body["response_format"]).toBeUndefined();
+  expect(JSON.stringify(body["messages"])).toContain('JSON Schema');
+  expect(jsonIn('Here:\n```json\n{"a":1}\n```')).toBe('{"a":1}');
+  expect(jsonIn("no json")).toBe("no json");
+});
+
+test("pictures go to NVIDIA first and plain text to Groq first", () => {
+  const picture = { messages: [{ role: "user", content: [{ type: "image_url", image_url: { url: "data:image/png;base64,AA" } }] }] };
+  expect(hostsFor(picture).map((h) => h.name)).toEqual(["nvidia", "groq"]);
+  expect(hostsFor({ messages: [{ role: "user", content: "hi" }] }).map((h) => h.name)).toEqual(["groq", "nvidia"]);
 });

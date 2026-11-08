@@ -1,4 +1,5 @@
-// Groq first (the GROQ_API_KEY secret), then Workers AI through the Worker's AI binding: the models, JSON answers, and the one
+// Free hosted models, tried in order, then Workers AI through the Worker's AI binding: pictures go to NVIDIA NIM first
+// (NVIDIA_API_KEY) and then Groq (GROQ_API_KEY); plain text goes to Groq, then NIM. Also the JSON answers, and the one
 // failure people meet on the free plan, the day's allowance running out.
 
 import { log } from "../src/log";
@@ -26,51 +27,90 @@ export function failure(error: unknown): Response {
 
 export class BadRequest extends Error {}
 
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODELS: Record<string, string> = {
-  [SCOUT]: "qwen/qwen3.8-27b",
-  [LLAMA]: "openai/gpt-oss-120b",
-};
-// Groq's free tier allows about 30 requests a minute; a 429 is waited out below. No state is shared between
-// requests: a timer made in one request never fires in another's, so a shared queue hangs.
-// A stalled Groq call gives up after this long and the caller falls back to Workers AI.
-const GROQ_TIMEOUT_MS = 40000;
-// A rate-limited call is retried this many times, within this much time, before Workers AI is tried.
-const GROQ_TRIES = 4;
-const GROQ_BUDGET_MS = 110000;
+export interface Host {
+  name: string;
+  url: string;
+  key: (env: Env) => string | undefined;
+  // The hosted model standing in for each Workers AI model, best first. Several, because a free key may not reach them all.
+  models: Record<string, string[]>;
+  // Hosts that don't take a JSON schema get it in the prompt instead.
+  schemaInPrompt: boolean;
+}
 
-// The Workers AI request body, reshaped for Groq's OpenAI-compatible endpoint.
-export function toGroq(model: string, input: Record<string, unknown>): Record<string, unknown> {
+const GROQ: Host = {
+  name: "groq",
+  url: "https://api.groq.com/openai/v1/chat/completions",
+  key: (env) => env.GROQ_API_KEY,
+  models: { [SCOUT]: ["qwen/qwen3.8-27b"], [LLAMA]: ["openai/gpt-oss-120b"] },
+  schemaInPrompt: false,
+};
+
+const NIM: Host = {
+  name: "nvidia",
+  url: "https://integrate.api.nvidia.com/v1/chat/completions",
+  key: (env) => env.NVIDIA_API_KEY,
+  models: {
+    [SCOUT]: ["meta/llama-4-maverick-17b-128e-instruct", "meta/llama-3.2-90b-vision-instruct"],
+    [LLAMA]: ["meta/llama-3.3-70b-instruct"],
+  },
+  schemaInPrompt: true,
+};
+
+// A stalled call gives up after this long and the next host is tried. No state is shared between requests:
+// a timer made in one request never fires in another's, so a shared queue hangs.
+const CALL_TIMEOUT_MS = 40000;
+// A rate-limited call is retried this many times, within this much time, before the next host is tried.
+const TRIES = 4;
+const BUDGET_MS = 110000;
+
+// The Workers AI request body, reshaped for an OpenAI-compatible endpoint. NVIDIA gets the schema in the prompt.
+export function toGroq(model: string, input: Record<string, unknown>, schemaInPrompt = false): Record<string, unknown> {
   const { response_format: format, ...rest } = input;
   const body: Record<string, unknown> = { ...rest, model };
   if (model.startsWith("openai/gpt-oss")) body["reasoning_effort"] = "low";
   const schema = (format as { json_schema?: unknown } | undefined)?.json_schema;
-  if (schema !== undefined) body["response_format"] = { type: "json_schema", json_schema: { name: "answer", schema } };
+  if (schema === undefined) return body;
+  if (!schemaInPrompt) {
+    body["response_format"] = { type: "json_schema", json_schema: { name: "answer", schema } };
+    return body;
+  }
+  const rule = `Answer with only one JSON object that matches this JSON Schema, and nothing else:\n${JSON.stringify(schema)}`;
+  const messages = (rest["messages"] as { role: string; content: unknown }[]).map((m) => ({ ...m }));
+  const last = messages[messages.length - 1];
+  if (last !== undefined) {
+    last.content = Array.isArray(last.content) ? [...(last.content as unknown[]), { type: "text", text: rule }] : `${String(last.content)}\n\n${rule}`;
+  }
+  body["messages"] = messages;
   return body;
+}
+
+// The JSON object in a model's reply, which may sit inside a code fence or after a sentence.
+export function jsonIn(text: string): string {
+  const open = text.indexOf("{");
+  const close = text.lastIndexOf("}");
+  return open >= 0 && close > open ? text.slice(open, close + 1) : text;
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// One Groq call, or undefined when it can't answer (no key, 429 after a wait, 4xx/5xx, network):
-// the caller then uses Workers AI.
-async function groq(env: Env, model: string, input: Record<string, unknown>): Promise<{ response: string } | undefined> {
-  const groqModel = GROQ_MODELS[model];
-  if (env.GROQ_API_KEY === undefined || groqModel === undefined) return undefined;
-  const body = JSON.stringify(toGroq(groqModel, input));
+// One call to one hosted model, or undefined when it can't answer (no key, 429 after a wait, 4xx/5xx, network):
+// the caller then tries the next.
+async function chat(host: Host, key: string, model: string, input: Record<string, unknown>): Promise<{ response: string } | undefined> {
+  const body = JSON.stringify(toGroq(model, input, host.schemaInPrompt));
   const started = Date.now();
-  for (let attempt = 0; attempt < GROQ_TRIES; attempt++) {
+  for (let attempt = 0; attempt < TRIES; attempt++) {
     try {
       const stop = new AbortController();
-      const timer = setTimeout(() => { stop.abort(); }, GROQ_TIMEOUT_MS);
+      const timer = setTimeout(() => { stop.abort(); }, CALL_TIMEOUT_MS);
       const stalled = new Promise<never>((_, reject) => {
-        stop.signal.addEventListener("abort", () => { reject(new Error("groq timed out")); });
+        stop.signal.addEventListener("abort", () => { reject(new Error(`${host.name} timed out`)); });
       });
       const res = await Promise.race([
-        fetch(GROQ_URL, {
+        fetch(host.url, {
           method: "POST",
-          headers: { authorization: `Bearer ${env.GROQ_API_KEY}`, "content-type": "application/json" },
+          headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
           body,
           signal: stop.signal,
         }),
@@ -80,26 +120,47 @@ async function groq(env: Env, model: string, input: Record<string, unknown>): Pr
         const out = (await Promise.race([res.json(), stalled])) as { choices?: { message?: { content?: unknown } }[] };
         clearTimeout(timer);
         const content = out.choices?.[0]?.message?.content;
-        if (typeof content === "string") return { response: content };
-        log("warn", "groq gave no text", { model: groqModel });
+        if (typeof content === "string") return { response: host.schemaInPrompt && input["response_format"] !== undefined ? jsonIn(content) : content };
+        log("warn", "model gave no text", { host: host.name, model });
         return undefined;
       }
       clearTimeout(timer);
-      log("warn", "groq refused", { status: res.status, model: groqModel });
+      log("warn", "model refused", { host: host.name, status: res.status, model });
       const wait = Math.min(Number(res.headers.get("retry-after") ?? "6") + 1, 40);
-      if ((res.status !== 429 && res.status !== 503) || attempt === GROQ_TRIES - 1 || Date.now() - started + wait * 1000 > GROQ_BUDGET_MS) return undefined;
+      if ((res.status !== 429 && res.status !== 503) || attempt === TRIES - 1 || Date.now() - started + wait * 1000 > BUDGET_MS) return undefined;
       await sleep(wait * 1000);
     } catch (error) {
-      log("warn", "groq unreachable", { error: error instanceof Error ? error.message : String(error) });
+      log("warn", "model unreachable", { host: host.name, error: error instanceof Error ? error.message : String(error) });
       return undefined;
     }
   }
   return undefined;
 }
 
+function hasPicture(input: Record<string, unknown>): boolean {
+  return JSON.stringify(input["messages"] ?? []).includes('"image_url"');
+}
+
+// The hosted models to try for this request, in order.
+export function hostsFor(input: Record<string, unknown>): Host[] {
+  return hasPicture(input) ? [NIM, GROQ] : [GROQ, NIM];
+}
+
+async function hosted(env: Env, model: string, input: Record<string, unknown>): Promise<{ response: string } | undefined> {
+  for (const host of hostsFor(input)) {
+    const key = host.key(env);
+    if (key === undefined) continue;
+    for (const hostModel of host.models[model] ?? []) {
+      const answer = await chat(host, key, hostModel, input);
+      if (answer !== undefined) return answer;
+    }
+  }
+  return undefined;
+}
+
 export async function run(env: Env, model: string, input: Record<string, unknown>): Promise<unknown> {
-  const fromGroq = await groq(env, model, input);
-  if (fromGroq !== undefined) return fromGroq;
+  const fromHost = await hosted(env, model, input);
+  if (fromHost !== undefined) return fromHost;
   try {
     return await env.AI.run(model, input);
   } catch (error) {

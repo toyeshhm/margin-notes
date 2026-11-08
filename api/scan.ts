@@ -8,7 +8,7 @@
 import { markingKey, snapMark } from "../src/lib/markingKey";
 import { MARK_KINDS, type MarkKind, type PageScan, type SheetRead } from "../src/lib/types";
 import type { Env } from "../worker";
-import { askJSON, BadRequest, failure, json, readJSON, run, SCOUT, str } from "./ai";
+import { askJSON, BadRequest, failure, readJSON, run, SCOUT, str } from "./ai";
 
 const SYSTEM = `You read phone photos of typed school essays that a teacher has marked by hand in pen.
 You copy what is there and never add, fix or invent anything.`;
@@ -167,24 +167,46 @@ async function readWholePage(env: Env, page: string): Promise<PageScan["marks"]>
   });
 }
 
+const CACHE_TABLE = "create table if not exists scan_cache (hash text primary key, result text not null, created_at text not null)";
+
+async function fingerprint(body: Record<string, unknown>): Promise<string> {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(body)));
+  return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// The same photo (or close-up) read twice costs one read: results are kept by a hash of the request.
+async function cached(env: Env, body: Record<string, unknown>, read: () => Promise<Record<string, unknown>>): Promise<Response> {
+  const hash = await fingerprint(body);
+  await env.DB.prepare(CACHE_TABLE).run();
+  const hit = await env.DB.prepare("select result from scan_cache where hash = ?").bind(hash).first<{ result: string }>();
+  if (hit !== null) return new Response(hit.result, { headers: { "content-type": "application/json" } });
+  const result = JSON.stringify(await read());
+  await env.DB.prepare("insert or ignore into scan_cache (hash, result, created_at) values (?, ?, ?)").bind(hash, result, new Date().toISOString()).run();
+  return new Response(result, { headers: { "content-type": "application/json" } });
+}
+
 export const POST = async (request: Request, env: Env): Promise<Response> => {
   try {
     const body = record(await readJSON(request, 12_000_000));
     if (body["sheet"] !== undefined) {
       const inMargin = (Array.isArray(body["inMargin"]) ? (body["inMargin"] as unknown[]) : []).slice(0, 8).map((m) => m === true);
       if (inMargin.length === 0) throw new BadRequest("No marks to read.");
-      return json({ marks: await readSheet(env, image(body["sheet"]), inMargin) });
+      const sheet = image(body["sheet"]);
+      return await cached(env, body, async () => ({ marks: await readSheet(env, sheet, inMargin) }));
     }
     if (body["writing"] !== undefined) {
       const count = Math.min(12, Math.max(1, Math.round(Number(body["count"]) || 1)));
-      return json({ words: await readWriting(env, image(body["writing"]), count) });
+      const writing = image(body["writing"]);
+      return await cached(env, body, async () => ({ words: await readWriting(env, writing, count) }));
     }
     const page = image(body["image"]);
     if (body["whole"] === true) {
-      return json({ marks: (await readWholePage(env, page)).filter((m) => m.words.trim() !== "" && m.near !== "") });
+      return await cached(env, body, async () => ({ marks: (await readWholePage(env, page)).filter((m) => m.words.trim() !== "" && m.near !== "") }));
     }
-    const text = await readText(env, page);
-    return json(text === undefined ? { isEssay: false, text: "" } : { isEssay: true, text });
+    return await cached(env, body, async () => {
+      const text = await readText(env, page);
+      return text === undefined ? { isEssay: false, text: "" } : { isEssay: true, text };
+    });
   } catch (error) {
     return failure(error);
   }
