@@ -50,8 +50,8 @@ const NIM: Host = {
   url: "https://integrate.api.nvidia.com/v1/chat/completions",
   key: (env) => env.NVIDIA_API_KEY,
   models: {
-    [SCOUT]: ["meta/llama-4-maverick-17b-128e-instruct", "meta/llama-3.2-90b-vision-instruct"],
-    [LLAMA]: ["meta/llama-3.3-70b-instruct"],
+    [SCOUT]: ["meta/llama-3.2-90b-vision-instruct", "nvidia/nemotron-3.5-super-vl-120b-a12b", "google/gemma-4-31b-it"],
+    [LLAMA]: ["openai/gpt-oss-20b", "nvidia/llama-3.1-nemotron-70b-instruct"],
   },
   schemaInPrompt: true,
 };
@@ -97,10 +97,10 @@ function sleep(ms: number): Promise<void> {
 
 // One call to one hosted model, or undefined when it can't answer (no key, 429 after a wait, 4xx/5xx, network):
 // the caller then tries the next.
-async function chat(host: Host, key: string, model: string, input: Record<string, unknown>): Promise<{ response: string } | undefined> {
+async function chat(host: Host, key: string, model: string, input: Record<string, unknown>, tries: number): Promise<{ response: string } | undefined> {
   const body = JSON.stringify(toGroq(model, input, host.schemaInPrompt));
   const started = Date.now();
-  for (let attempt = 0; attempt < TRIES; attempt++) {
+  for (let attempt = 0; attempt < tries; attempt++) {
     try {
       const stop = new AbortController();
       const timer = setTimeout(() => { stop.abort(); }, CALL_TIMEOUT_MS);
@@ -127,7 +127,7 @@ async function chat(host: Host, key: string, model: string, input: Record<string
       clearTimeout(timer);
       log("warn", "model refused", { host: host.name, status: res.status, model });
       const wait = Math.min(Number(res.headers.get("retry-after") ?? "6") + 1, 40);
-      if ((res.status !== 429 && res.status !== 503) || attempt === TRIES - 1 || Date.now() - started + wait * 1000 > BUDGET_MS) return undefined;
+      if ((res.status !== 429 && res.status !== 503) || attempt === tries - 1 || Date.now() - started + wait * 1000 > BUDGET_MS) return undefined;
       await sleep(wait * 1000);
     } catch (error) {
       log("warn", "model unreachable", { host: host.name, error: error instanceof Error ? error.message : String(error) });
@@ -147,13 +147,14 @@ export function hostsFor(input: Record<string, unknown>): Host[] {
 }
 
 async function hosted(env: Env, model: string, input: Record<string, unknown>): Promise<{ response: string } | undefined> {
-  for (const host of hostsFor(input)) {
+  const options = hostsFor(input).flatMap((host) => {
     const key = host.key(env);
-    if (key === undefined) continue;
-    for (const hostModel of host.models[model] ?? []) {
-      const answer = await chat(host, key, hostModel, input);
-      if (answer !== undefined) return answer;
-    }
+    return key === undefined ? [] : (host.models[model] ?? []).map((hostModel) => ({ host, key, hostModel }));
+  });
+  for (const [k, { host, key, hostModel }] of options.entries()) {
+    // Only the last option is waited on when rate-limited; the others are skipped past at once.
+    const answer = await chat(host, key, hostModel, input, k === options.length - 1 ? TRIES : 1);
+    if (answer !== undefined) return answer;
   }
   return undefined;
 }
@@ -191,7 +192,49 @@ export async function askJSON(
   throw new Error(`no JSON from ${model}`);
 }
 
+const NIM_EMBEDDINGS_URL = "https://integrate.api.nvidia.com/v1/embeddings";
+// NVIDIA's own embedding models (bge-m3 is no longer hosted there); they want an input type.
+const NIM_EMBEDDERS: { model: string; extra: Record<string, unknown> }[] = [
+  { model: "nvidia/llama-3.2-nv-embedqa-1b-v1", extra: { input_type: "passage", truncate: "END" } },
+  { model: "nvidia/nemotron-3.5-embed-1b", extra: { input_type: "passage", truncate: "END" } },
+  { model: "nvidia/nemotron-3-embed-1b", extra: { input_type: "passage", truncate: "END" } },
+];
+
+// All the texts embedded by one NVIDIA model (vectors from two models can't be compared), or undefined.
+async function nimEmbed(key: string, texts: string[]): Promise<number[][] | undefined> {
+  for (const { model, extra } of NIM_EMBEDDERS) {
+    const vectors: number[][] = [];
+    for (let k = 0; k < texts.length; k += 50) {
+      try {
+        const res = await fetch(NIM_EMBEDDINGS_URL, {
+          method: "POST",
+          headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+          body: JSON.stringify({ model, input: texts.slice(k, k + 50), encoding_format: "float", ...extra }),
+          signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+        });
+        if (!res.ok) {
+          log("warn", "embedding refused", { model, status: res.status });
+          break;
+        }
+        const out = (await res.json()) as { data?: { embedding?: number[] }[] };
+        const got = (out.data ?? []).map((d) => d.embedding);
+        if (got.length !== Math.min(50, texts.length - k) || got.some((e) => e === undefined)) break;
+        vectors.push(...(got as number[][]));
+      } catch (error) {
+        log("warn", "embedding unreachable", { model, error: error instanceof Error ? error.message : String(error) });
+        break;
+      }
+    }
+    if (vectors.length === texts.length) return vectors;
+  }
+  return undefined;
+}
+
 export async function embed(env: Env, texts: string[]): Promise<number[][]> {
+  if (env.NVIDIA_API_KEY !== undefined) {
+    const hostedVectors = await nimEmbed(env.NVIDIA_API_KEY, texts);
+    if (hostedVectors !== undefined) return hostedVectors;
+  }
   const vectors: number[][] = [];
   for (let k = 0; k < texts.length; k += 50) {
     const out = (await run(env, BGE, { text: texts.slice(k, k + 50) })) as { data?: unknown };
