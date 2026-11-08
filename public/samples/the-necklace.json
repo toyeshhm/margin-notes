@@ -1,0 +1,217 @@
+{
+ "title": "What the Necklace Cost",
+ "source": "docx",
+ "paragraphs": [
+  {
+   "heading": true,
+   "sentences": [
+    {
+     "id": "s0",
+     "text": "Jonah Reyes",
+     "page": 1
+    }
+   ]
+  },
+  {
+   "heading": true,
+   "sentences": [
+    {
+     "id": "s1",
+     "text": "Mr. Hale",
+     "page": 1
+    }
+   ]
+  },
+  {
+   "heading": true,
+   "sentences": [
+    {
+     "id": "s2",
+     "text": "English 10",
+     "page": 1
+    }
+   ]
+  },
+  {
+   "heading": true,
+   "sentences": [
+    {
+     "id": "s3",
+     "text": "3 November 2026",
+     "page": 1
+    }
+   ]
+  },
+  {
+   "heading": true,
+   "sentences": [
+    {
+     "id": "s4",
+     "text": "What the Necklace Cost",
+     "page": 1
+    }
+   ]
+  },
+  {
+   "heading": false,
+   "sentences": [
+    {
+     "id": "s5",
+     "text": "Mathilde Loisel spends ten years paying for a necklace that was never worth what she thought.",
+     "page": 1
+    },
+    {
+     "id": "s6",
+     "text": "In “The Necklace,” Guy de Maupassant tells the story of a woman who wanted more.",
+     "page": 1
+    },
+    {
+     "id": "s7",
+     "text": "Maupassant shows that pride costs more than poverty, and that Mathilde loses her youth because she would rather work for a decade than admit a mistake.",
+     "page": 1
+    }
+   ]
+  },
+  {
+   "heading": false,
+   "sentences": [
+    {
+     "id": "s8",
+     "text": "From the first page, Mathilde believes she was born for a richer life.",
+     "page": 1
+    },
+    {
+     "id": "s9",
+     "text": "Maupassant describes her as one of those girls born “as if by a slip of fate” into a family of clerks.",
+     "page": 1
+    },
+    {
+     "id": "s10",
+     "text": "She has a husband who loves her and a home that is comfortable, but she only sees what is missing.",
+     "page": 1
+    },
+    {
+     "id": "s11",
+     "text": "When the invitation to the ball arrives, she cries because she has nothing to wear.",
+     "page": 1
+    }
+   ]
+  },
+  {
+   "heading": false,
+   "sentences": [
+    {
+     "id": "s12",
+     "text": "She borrows a diamond necklace from her friend Madame Forestier and goes to the ball.",
+     "page": 1
+    },
+    {
+     "id": "s13",
+     "text": "Everyone admires her and she dances until four in the morning.",
+     "page": 1
+    },
+    {
+     "id": "s14",
+     "text": "On the way home she discovers that the necklace is gone.",
+     "page": 1
+    }
+   ]
+  },
+  {
+   "heading": false,
+   "sentences": [
+    {
+     "id": "s15",
+     "text": "The real turning point is what Mathilde chooses next, she could tell her friend the truth but she decides to buy a replacement and say nothing.",
+     "page": 1
+    },
+    {
+     "id": "s16",
+     "text": "The Loisels borrow thirty-six thousand francs, give up their maid and move to an attic.",
+     "page": 1
+    },
+    {
+     "id": "s17",
+     "text": "Mathilde does the washing and carries water up the stairs for ten years.",
+     "page": 1
+    },
+    {
+     "id": "s18",
+     "text": "By the end she looks old and very sad.",
+     "page": 1
+    }
+   ]
+  },
+  {
+   "heading": false,
+   "sentences": [
+    {
+     "id": "s19",
+     "text": "In the last lines, Madame Forestier tells her the diamonds were paste, worth five hundred francs at most.",
+     "page": 1
+    },
+    {
+     "id": "s20",
+     "text": "Mathilde gave up ten years for a fake.",
+     "page": 1
+    },
+    {
+     "id": "s21",
+     "text": "The story shows that pride costs more than poverty.",
+     "page": 1
+    }
+   ]
+  }
+ ],
+ "marks": [
+  {
+   "n": 1,
+   "words": "Too general. What exactly does she want?",
+   "kind": "comment",
+   "near": "a woman who wanted more",
+   "sentenceId": "s6"
+  },
+  {
+   "n": 2,
+   "words": "Two claims in one thesis. Which one is your argument?",
+   "kind": "comment",
+   "near": "Maupassant shows that pride costs more than poverty, and that Mathilde loses her youth",
+   "sentenceId": "s7"
+  },
+  {
+   "n": 3,
+   "words": "Cite the page for this quote.",
+   "kind": "comment",
+   "near": "“as if by a slip of fate”",
+   "sentenceId": "s9"
+  },
+  {
+   "n": 4,
+   "words": "This paragraph is plot summary. Analyze: why does the ball matter?",
+   "kind": "comment",
+   "near": "She borrows a diamond necklace from her friend Madame Forestier and goes to the ball.",
+   "sentenceId": "s12"
+  },
+  {
+   "n": 5,
+   "words": "Run-on sentence.",
+   "kind": "comment",
+   "near": "The real turning point is what Mathilde chooses next, she could tell her friend the truth",
+   "sentenceId": "s15"
+  },
+  {
+   "n": 6,
+   "words": "wc: show it instead of saying it.",
+   "kind": "comment",
+   "near": "very sad",
+   "sentenceId": "s18"
+  },
+  {
+   "n": 7,
+   "words": "This repeats your thesis word for word. So what?",
+   "kind": "comment",
+   "near": "The story shows that pride costs more than poverty.",
+   "sentenceId": "s21"
+  }
+ ]
+}
