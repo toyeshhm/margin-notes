@@ -75,12 +75,13 @@ test("a shared note opens read-only, and an unknown one says so", async ({ page,
   });
   expect(made.ok()).toBe(true);
   const { id } = (await made.json()) as { id: string };
+  expect(id).toMatch(/^[a-f0-9]{32}$/);
   await page.goto(`/n/${id}`);
   await expect(page.getByRole("heading", { name: "Playtest essay" })).toBeVisible();
   await expect(page.getByText("Most students do not get enough sleep.")).toBeVisible();
   await expect(page.getByText("Not yet answered")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Menu" })).toHaveCount(0);
-  await page.goto("/n/000000000000");
+  await page.goto(`/n/${"0".repeat(32)}`);
   await expect(page.getByRole("heading", { name: "No note here" })).toBeVisible();
 });
 

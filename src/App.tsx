@@ -58,7 +58,7 @@ function route(path: string): React.JSX.Element {
   if (here === "/key") return <MarkingKey />;
   const essay = /^\/e\/([a-z0-9-]+)$/.exec(here);
   if (essay?.[1] !== undefined) return <EssayView key={essay[1]} id={essay[1]} />;
-  const note = /^\/n\/([a-f0-9]{12})$/.exec(here);
+  const note = /^\/n\/([a-f0-9]{32})$/.exec(here);
   if (note?.[1] !== undefined) return <SharedNote id={note[1]} />;
   return <NotFound />;
 }

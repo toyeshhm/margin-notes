@@ -35,7 +35,9 @@ function clean(raw: unknown): Note {
 export const POST = async (request: Request, env: Env): Promise<Response> => {
   try {
     const note = clean(await readJSON(request, 100_000));
-    const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+    // 128 random bits: a note link can't be guessed.
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    const id = [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
     const playtest = request.headers.get("x-playtest") === "1" ? 1 : 0;
     await env.DB.batch([
       env.DB.prepare(TABLE),
@@ -50,7 +52,7 @@ export const POST = async (request: Request, env: Env): Promise<Response> => {
 export const GET = async (request: Request, env: Env): Promise<Response> => {
   try {
     const id = new URL(request.url).searchParams.get("id") ?? "";
-    if (!/^[a-f0-9]{12}$/.test(id)) return json({ error: "not-found", message: "There's no note at this link." }, 404);
+    if (!/^[a-f0-9]{32}$/.test(id)) return json({ error: "not-found", message: "There's no note at this link." }, 404);
     await env.DB.prepare(TABLE).run();
     const row = await env.DB.prepare("select body from notes where id = ?").bind(id).first<{ body: string }>();
     if (row === null) return json({ error: "not-found", message: "There's no note at this link." }, 404);

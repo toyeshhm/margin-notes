@@ -19,7 +19,11 @@ createRoot(root).render(
     <video className="loop" autoPlay muted loop playsInline src="/assets/relief-loop.mp4" />
     <div className="title-card">
       <h1>
-        <span className="typed" aria-label={cards.title} />
+        {Array.from(cards.title).map((ch, i) => (
+          <span key={i} className="letter">
+            {ch}
+          </span>
+        ))}
         <span className="caret" aria-hidden="true" />
       </h1>
       <svg className="stroke" viewBox="0 0 1000 40" preserveAspectRatio="none" aria-hidden="true" dangerouslySetInnerHTML={{ __html: stroke.svg }} />
@@ -30,12 +34,10 @@ createRoot(root).render(
 );
 
 requestAnimationFrame(() => {
-  const typed = document.querySelector(".typed");
-  if (typed === null) return;
-  const letters = { n: 0 };
   const tl = gsap.timeline();
+  // Typed one letter at a time: each letter is already there, and appears on its key stroke.
   tl.from(".title-card", { y: 40, rotate: -4, opacity: 0, duration: 0.7, ease: "expo.out" })
-    .to(letters, { n: cards.title.length, duration: 1.1, ease: `steps(${String(cards.title.length)})`, onUpdate: () => { typed.textContent = cards.title.slice(0, Math.round(letters.n)); } }, 0.5)
+    .from(".letter", { opacity: 0, duration: 0.01, stagger: 1.1 / cards.title.length }, 0.5)
     .to(".caret", { opacity: 0, repeat: 5, yoyo: true, duration: 0.25 }, 1.6)
     .from(".tagline", { y: 14, opacity: 0, duration: 0.6, ease: "expo.out" }, 2.6)
     .from(".url", { y: 10, opacity: 0, duration: 0.6, ease: "expo.out" }, 3.0);
