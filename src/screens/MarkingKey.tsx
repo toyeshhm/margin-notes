@@ -19,7 +19,7 @@ export default function MarkingKey(): React.JSX.Element {
             </span>
             <p className="key-meaning">{k.meaning}</p>
             <p className="key-todo">{k.todo}</p>
-            {k.also.length > 0 && <p className="key-also">Also written {k.also.slice(0, 3).join(", ")}</p>}
+            {k.also.some((a) => !a.endsWith(".")) && <p className="key-also">Also written {k.also.filter((a) => !a.endsWith(".")).slice(0, 3).join(", ")}</p>}
           </li>
         ))}
       </ul>

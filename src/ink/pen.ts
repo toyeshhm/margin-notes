@@ -276,7 +276,13 @@ export function inkSVG(strokes: Stroke[], { pen = BALLPOINT, color = "var(--colo
 export function handSVG(text: string, { size = 22, pen = BALLPOINT, color = "var(--color-pen)", write = false, delay = 0, speed = 420, seed = 7, pad = 6 } = {}): { svg: string; end: number; width: number; height: number } {
   const strokes: Stroke[] = [];
   let width = 0;
-  for (const [i, part] of text.split("¶").entries()) {
+  // A caret is drawn as the mark, not the Hershey "^" glyph (which reads as an arrow).
+  const caretFirst = text.trimStart().startsWith("^");
+  if (caretFirst) {
+    strokes.push(...caret(pad + size * 0.4, pad + size * 0.55, size * 0.75, { seed }));
+    width += size * 0.95;
+  }
+  for (const [i, part] of text.replace(/^\s*\^\s*/, "").split("¶").entries()) {
     if (i > 0) {
       strokes.push(...pilcrow(pad + width, pad + size * 0.1, size * 1.1, { seed }));
       width += size * 0.9;

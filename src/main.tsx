@@ -6,6 +6,7 @@ import { initMotion } from "./motion";
 import "./tokens.css";
 import "./paper.css";
 import "./app.css";
+import "./screens.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root");

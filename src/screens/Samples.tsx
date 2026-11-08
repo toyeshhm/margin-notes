@@ -4,7 +4,6 @@
 
 import { useState } from "react";
 
-import { Hand } from "../components/Hand";
 import { setFresh } from "../lib/fresh";
 import { newId, saveEssay, useEssays } from "../lib/store";
 import type { Essay } from "../lib/types";
@@ -58,10 +57,18 @@ export default function Samples(): React.JSX.Element {
           <li key={s.id} className="tray-item" style={{ "--tilt": `${String([-1.2, 0.8, -0.4][i % 3] ?? 0)}deg` } as React.CSSProperties}>
             <button type="button" className="sample" disabled={busy !== undefined} onClick={() => void open(s.id)}>
               <span className="sample-page" aria-hidden="true">
-                <span className="sample-lines" />
-                <span className="sample-mark">
-                  <Hand words={s.source === "docx" ? "?" : (s.comments[0]?.words ?? "awk")} size={22} />
-                </span>
+                {s.source === "photos" ? (
+                  <img src={`/samples/${s.files[0] ?? ""}`} alt="" loading="lazy" />
+                ) : (
+                  <>
+                    <span className="sample-lines" />
+                    {s.comments.slice(0, 3).map((c, k) => (
+                      <span key={c.n} className="sample-bubble" style={{ top: `${String(16 + k * 24)}%` }}>
+                        {c.words}
+                      </span>
+                    ))}
+                  </>
+                )}
               </span>
               <span className="sample-title">{s.title}</span>
               <span className="sample-what">{s.what}</span>

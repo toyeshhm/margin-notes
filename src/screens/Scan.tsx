@@ -95,6 +95,10 @@ function Photos(): React.JSX.Element {
       >
         {files.length === 0 ? (
           <div className="drop-empty">
+            <span className="drop-art" aria-hidden="true">
+              <img src="/assets/page1-dust.webp" alt="" />
+              <img src="/assets/scan-plane.webp" alt="" />
+            </span>
             <p className="drop-title">Drop a photo of each marked page here</p>
             <p>One to four pages, in order. Typed essays marked by hand, in any colour of pen.</p>
             <button type="button" className="btn" onClick={() => input.current?.click()}>
@@ -182,6 +186,11 @@ function WordFile(): React.JSX.Element {
         }}
       >
         <div className="drop-empty">
+          <span className="drop-art word" aria-hidden="true">
+            <span className="doc">
+              <span className="bubble">Cite the page for this quote.</span>
+            </span>
+          </span>
           <p className="drop-title">Drop a Word file with your teacher&rsquo;s comments</p>
           <p className="hint">From Google Docs: File, Download, Microsoft Word</p>
           <button type="button" className="btn" disabled={status.kind === "reading"} onClick={() => input.current?.click()}>

@@ -1,0 +1,20 @@
+/* The video's title and end cards, at 1920 x 1080: the graphite desk at night. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--color-bg); }
+.stage { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: var(--color-bg); }
+.stage .dust { position: absolute; inset: -4%; width: 108%; height: 108%; object-fit: cover; opacity: 0.55; }
+.stage .loop { position: absolute; right: -6vw; bottom: -10vh; width: 46vw; opacity: 0.5; mask-image: radial-gradient(closest-side, #000 55%, transparent); }
+.title-card { position: absolute; left: 50%; top: 50%; width: 62vw; padding: 5vh 4vw 4.5vh; transform: translate(-50%, -50%) rotate(-1deg);
+  background: var(--color-paper); color: var(--color-type); box-shadow: 0 3vh 6vh rgba(0, 0, 0, 0.5), 0 0.5vh 1vh rgba(0, 0, 0, 0.3);
+  background-image: repeating-linear-gradient(transparent 0 4.4vh, rgba(80, 110, 190, 0.2) 4.4vh calc(4.4vh + 1px)); }
+.title-card h1 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 15vh; line-height: 0.95; text-transform: uppercase; white-space: nowrap; }
+.title-card .caret { display: inline-block; width: 0.08em; height: 0.8em; margin-left: 0.04em; background: var(--color-type); vertical-align: -0.05em; }
+.title-card .stroke { display: block; width: 100%; height: 3.6vh; margin-top: -0.6vh; overflow: visible; }
+.title-card .tagline { margin: 3vh 0 0; font-family: var(--font-display); font-weight: 600; font-size: 6.4vh; line-height: 1.05; }
+.title-card .url, .end-url { margin: 2vh 0 0; font-family: var(--font-body); font-weight: 700; font-size: 3.4vh; color: var(--color-tick); }
+.end-page { position: absolute; left: 7vw; top: 50%; transform: translateY(-50%) rotate(-2deg); box-shadow: 0 3vh 6vh rgba(0, 0, 0, 0.5); }
+.end-page .better { position: absolute; left: 34%; top: 1.2%; z-index: 2; }
+.end-text { position: absolute; left: 50vw; top: 50%; transform: translateY(-50%); width: 44vw; color: var(--color-ink); }
+.end-text h1 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 17vh; line-height: 0.9; text-transform: uppercase; }
+.end-url { font-size: 3.6vh; color: var(--color-accent); white-space: nowrap; }
+.credits { margin: 6vh 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 1.2vh 1.6vw; font-size: 2.6vh; color: var(--color-dust); }
+.credits li:first-child { color: var(--color-ink); font-weight: 700; }
