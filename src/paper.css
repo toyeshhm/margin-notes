@@ -16,6 +16,9 @@
 }
 .paper p { margin: 0; text-indent: calc(48 * var(--u)); }
 .paper .paper-head p { text-indent: 0; }
+.paper p.paper-head { text-indent: 0; }
+.paper p.paper-head .s { display: block; }
+.paper p.paper-title .s { text-align: center; }
 .paper .paper-title { text-align: center; }
 .paper .paper-run { position: absolute; top: calc(48 * var(--u)); right: calc(96 * var(--u)); line-height: 1; }
 .paper .staple {

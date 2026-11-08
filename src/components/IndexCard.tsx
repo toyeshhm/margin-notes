@@ -64,7 +64,7 @@ export function IndexCard({ essay, open, onOpen, round, onMove, onBeforeAfter, a
           return (
             <li
               key={m.n}
-              className={`row${isOpen ? " open" : ""}${v === undefined ? "" : v.ticked ? " ticked" : " missed"}${at === undefined ? "" : " arriving"}`}
+              className={`row${typed ? " typed" : ""}${isOpen ? " open" : ""}${v === undefined ? "" : v.ticked ? " ticked" : " missed"}${at === undefined ? "" : " arriving"}`}
               style={at === undefined ? undefined : { animationDelay: `${at.toFixed(2)}s` }}
             >
               <button type="button" className="row-main" aria-expanded={isOpen} onClick={() => {
@@ -77,7 +77,7 @@ export function IndexCard({ essay, open, onOpen, round, onMove, onBeforeAfter, a
                 {v === undefined ? (
                   <span className="row-plain">
                     {m.plain === undefined ? (
-                      <span className="loading-line" aria-label="Putting this in plain words" />
+                      <span className="no-plain">No plain words yet: today&rsquo;s free reading allowance is used up.</span>
                     ) : (
                       <>
                         <strong>{m.plain.meaning}</strong> {m.plain.todo}

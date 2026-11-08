@@ -1,11 +1,12 @@
 // Turning what was read into an essay: pages of sentences, each mark pinned to its sentence and
 // numbered in reading order, then plain words for every mark.
 
-import { explain, scanPage } from "./api";
+import { ApiError, explain, scanPage } from "./api";
+import { keyFor } from "./markingKey";
 import { cropMark, findInk, loadPhoto, pageJPEG } from "./photo";
 import { newId } from "./store";
 import { allSentences, findSentence, toParagraphs } from "./text";
-import type { Essay, Mark, MarkKind, Paragraph } from "./types";
+import type { Essay, Mark, MarkKind, Paragraph, Plain } from "./types";
 
 export interface ReadMark {
   words: string;
@@ -40,9 +41,20 @@ export function pinMarks(paragraphs: readonly Paragraph[], read: readonly ReadMa
   return pinned.map(({ m, sentenceId }, k) => ({ n: k + 1, words: m.words, kind: m.kind, near: m.near, sentenceId }));
 }
 
+// Plain words from /api/explain. When the day's free model allowance is used up, a mark the
+// marking key knows still gets the key's own words; the rest show the teacher's words alone.
 export async function addPlainWords(paragraphs: readonly Paragraph[], marks: Mark[]): Promise<Mark[]> {
   const text = new Map(allSentences(paragraphs).map((s) => [s.id, s.text]));
-  const plains = await explain(marks.map((m) => ({ n: m.n, words: m.words, sentence: text.get(m.sentenceId) ?? m.near })));
+  let plains: Map<number, Plain>;
+  try {
+    plains = await explain(marks.map((m) => ({ n: m.n, words: m.words, sentence: text.get(m.sentenceId) ?? m.near })));
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.kind !== "allowance") throw error;
+    plains = new Map(marks.flatMap((m) => {
+      const key = keyFor(m.words);
+      return key === undefined ? [] : [[m.n, { meaning: key.meaning, todo: key.todo }] as const];
+    }));
+  }
   return marks.map((m) => {
     const plain = plains.get(m.n);
     return plain === undefined ? m : { ...m, plain };

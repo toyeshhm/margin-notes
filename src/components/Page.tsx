@@ -30,16 +30,16 @@ function inkKind(m: Mark): InkMark["kind"] {
 
 function sentenceChildren(text: string, marks: readonly Mark[]): ReactNode[] {
   const spans = marks
-    .map((m) => ({ n: m.n, span: m.kind === "comment" ? exact(text, m.near) : findSpan(m.near, text) }))
-    .filter((x): x is { n: number; span: { start: number; end: number } } => x.span !== undefined)
+    .map((m) => ({ n: m.n, typed: m.kind === "comment", span: m.kind === "comment" ? exact(text, m.near) : findSpan(m.near, text) }))
+    .filter((x): x is { n: number; typed: boolean; span: { start: number; end: number } } => x.span !== undefined)
     .sort((a, b) => a.span.start - b.span.start);
   const out: ReactNode[] = [];
   let at = 0;
-  for (const { n, span } of spans) {
+  for (const { n, typed, span } of spans) {
     if (span.start < at) continue;
     out.push(text.slice(at, span.start));
     out.push(
-      <span key={n} className="t" data-c={n}>
+      <span key={n} className={typed ? "t typed" : "t"} data-c={n}>
         {text.slice(span.start, span.end)}
       </span>,
     );
@@ -79,6 +79,9 @@ export function Page({ essay, page, width, open, moving, write, delay, onOpen, o
     return { paragraphs: own, marks: essay.marks.filter((m) => ids.has(m.sentenceId)) };
   }, [essay, page]);
   const lit = essay.marks.find((m) => m.n === open)?.sentenceId;
+  // The essay's title is the last heading line before the first paragraph; it sits centred.
+  const firstBody = paragraphs.findIndex((p) => !p.heading);
+  const titleAt = firstBody > 0 && paragraphs[firstBody - 1]?.sentences.length === 1 ? firstBody - 1 : -1;
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -88,7 +91,17 @@ export function Page({ essay, page, width, open, moving, write, delay, onOpen, o
     setInk(drawn.svg);
     onInk?.(page, drawn.times);
     const where = anchors(el, inkMarks);
-    setPins(marks.map((m) => ({ n: m.n, y: (where.get(m.n)?.[0]?.y ?? 0) + 16 })));
+    // Pins on neighbouring lines would overlap: each sits at least a pin's height below the one before.
+    const gap = 30 / (width / 816);
+    let last = Number.NEGATIVE_INFINITY;
+    const placed = marks
+      .map((m) => ({ n: m.n, y: (where.get(m.n)?.[0]?.y ?? 0) + 16 }))
+      .sort((a, b) => a.y - b.y || a.n - b.n)
+      .map((p) => {
+        last = Math.max(p.y, last + gap);
+        return { n: p.n, y: last };
+      });
+    setPins(placed);
   }, [marks, width, write, delay, onInk, page]);
 
   const down = (n: number) => (e: PointerEvent<HTMLButtonElement>) => {
@@ -126,7 +139,7 @@ export function Page({ essay, page, width, open, moving, write, delay, onOpen, o
       >
         <span className="paper-run">Page {page}</span>
         {paragraphs.map((p, i) => (
-          <p key={i} className={p.heading ? "paper-head" : undefined}>
+          <p key={i} className={p.heading ? (i === titleAt ? "paper-head paper-title" : "paper-head") : undefined}>
             {p.sentences.map((s) => (
               <span key={s.id}>
                 <span className={`s${s.id === lit ? " lit" : ""}`} data-s={s.id}>

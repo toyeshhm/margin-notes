@@ -38,9 +38,18 @@ function DraftView({ round }: { round: Round }): React.JSX.Element {
   return (
     <div className="draft paper" style={{ "--u": "1px" } as React.CSSProperties}>
       <p className="draft-label">Your revision, round {round.n}</p>
-      {paragraphs.map((p, i) => (
-        <p key={i}>{mark(p)}</p>
-      ))}
+      {paragraphs.map((p, i) => {
+        const lines = p.split("\n").filter((l) => l.trim() !== "");
+        return lines.length > 1 ? (
+          lines.map((l, k) => (
+            <p key={`${String(i)}-${String(k)}`} className="flush">
+              {mark(l)}
+            </p>
+          ))
+        ) : (
+          <p key={i}>{mark(p)}</p>
+        );
+      })}
     </div>
   );
 }
