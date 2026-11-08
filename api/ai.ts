@@ -1,4 +1,4 @@
-// Workers AI through the Worker's AI binding: the three models, JSON answers, and the one
+// Groq first (the GROQ_API_KEY secret), then Workers AI through the Worker's AI binding: the models, JSON answers, and the one
 // failure people meet on the free plan, the day's allowance running out.
 
 import { log } from "../src/log";
@@ -26,7 +26,65 @@ export function failure(error: unknown): Response {
 
 export class BadRequest extends Error {}
 
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODELS: Record<string, string> = {
+  [SCOUT]: "meta-llama/llama-4-scout-17b-16e-instruct",
+  [LLAMA]: "llama-3.3-70b-versatile",
+};
+// Groq's free tier allows about 30 requests a minute: calls start at least this far apart.
+const GROQ_GAP_MS = 2100;
+let groqTurn: Promise<void> = Promise.resolve();
+
+// The Workers AI request body, reshaped for Groq's OpenAI-compatible endpoint.
+export function toGroq(model: string, input: Record<string, unknown>): Record<string, unknown> {
+  const { response_format: format, ...rest } = input;
+  const body: Record<string, unknown> = { ...rest, model };
+  const schema = (format as { json_schema?: unknown } | undefined)?.json_schema;
+  if (schema !== undefined) body["response_format"] = { type: "json_schema", json_schema: { name: "answer", schema } };
+  return body;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// One Groq call, or undefined when it can't answer (no key, 429 after a wait, 4xx/5xx, network):
+// the caller then uses Workers AI.
+async function groq(env: Env, model: string, input: Record<string, unknown>): Promise<{ response: string } | undefined> {
+  const groqModel = GROQ_MODELS[model];
+  if (env.GROQ_API_KEY === undefined || groqModel === undefined) return undefined;
+  const body = JSON.stringify(toGroq(groqModel, input));
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const turn = groqTurn;
+    groqTurn = turn.then(() => sleep(GROQ_GAP_MS));
+    await turn;
+    try {
+      const res = await fetch(GROQ_URL, {
+        method: "POST",
+        headers: { authorization: `Bearer ${env.GROQ_API_KEY}`, "content-type": "application/json" },
+        body,
+      });
+      if (res.ok) {
+        const out = (await res.json()) as { choices?: { message?: { content?: unknown } }[] };
+        const content = out.choices?.[0]?.message?.content;
+        if (typeof content === "string") return { response: content };
+        log("warn", "groq gave no text", { model: groqModel });
+        return undefined;
+      }
+      log("warn", "groq refused", { status: res.status, model: groqModel });
+      if (res.status !== 429 || attempt === 1) return undefined;
+      await sleep(Math.min(Number(res.headers.get("retry-after") ?? "5"), 20) * 1000);
+    } catch (error) {
+      log("warn", "groq unreachable", { error: error instanceof Error ? error.message : String(error) });
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
 export async function run(env: Env, model: string, input: Record<string, unknown>): Promise<unknown> {
+  const fromGroq = await groq(env, model, input);
+  if (fromGroq !== undefined) return fromGroq;
   try {
     return await env.AI.run(model, input);
   } catch (error) {

@@ -102,6 +102,7 @@ function Photos(): React.JSX.Element {
             </span>
             <p className="drop-title">Drop a photo of each marked page here</p>
             <p>One to four pages, in order. Typed essays marked by hand, in any colour of pen.</p>
+            <p className="hint">Photos are sent to Groq or Cloudflare to be read, and are not kept.</p>
             <button type="button" className="btn" onClick={() => input.current?.click()}>
               Choose photos
             </button>

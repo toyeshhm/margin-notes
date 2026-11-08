@@ -13,6 +13,7 @@ interface D1Statement {
 }
 
 export interface Env {
+  GROQ_API_KEY?: string;
   ASSETS: { fetch(request: Request): Promise<Response> };
   AI: { run(model: string, input: Record<string, unknown>): Promise<unknown> };
   DB: {

@@ -30,4 +30,4 @@ The three sample essays, their students, teachers and school are invented for th
 
 ## AI models
 
-Workers AI on Cloudflare: Llama 4 Scout (reads page photos and each mark), Llama 3.3 70B (plain words and revision checks), bge-m3 (sentence embeddings to line up drafts). They run when a student uses the app; nothing they write is shipped as an asset.
+Groq (free tier, tried first) and Workers AI on Cloudflare (the fallback): Llama 4 Scout (reads page photos and each mark), Llama 3.3 70B (on Groq `llama-3.3-70b-versatile`; plain words and revision checks), bge-m3 (sentence embeddings to line up drafts). They run when a student uses the app; nothing they write is shipped as an asset.
