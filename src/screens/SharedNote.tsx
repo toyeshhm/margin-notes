@@ -32,7 +32,7 @@ export default function SharedNote({ id }: { id: string }): React.JSX.Element {
         <button type="button" className="btn quiet small" onClick={() => {
           window.print();
         }}>
-          Print
+          Print the note
         </button>
       </header>
       {state.kind === "loading" && <div className="note-sheet loading-sheet" aria-label="Loading the note" />}

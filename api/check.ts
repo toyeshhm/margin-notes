@@ -1,9 +1,10 @@
 // POST /api/check { sentences: [{ id, text }], draft, comments: [{ n, words, meaning, sentenceId }] } -> { verdicts }
 // bge-m3 embeds the sentences of both drafts, they are lined up in order (src/lib/align.ts), and
 // Llama 3.3 judges each comment against the new version of its sentence. It must quote the new
-// draft, and code keeps a tick only when that quote is in the draft word for word.
+// draft, and code keeps a tick only when that quote is word for word in the new version of the marked
+// sentence or a sentence added beside it, not in some other sentence of the draft.
 
-import { align, cosine } from "../src/lib/align";
+import { align, answerRegion, cosine } from "../src/lib/align";
 import { quoteCheck } from "../src/lib/guards";
 import { toParagraphs } from "../src/lib/text";
 import type { Verdict } from "../src/lib/types";
@@ -20,7 +21,7 @@ import {
 } from "./ai";
 
 // Part of every cached check's key: change it whenever the prompt or the models below change, so old answers aren't reused.
-const PROMPT_VERSION = 1;
+const PROMPT_VERSION = 2;
 
 interface Comment {
   n: number;
@@ -31,6 +32,8 @@ interface Comment {
 
 const SYSTEM = `You check whether a student's revised essay answers one comment their teacher left on the first draft.
 Judge only that comment. It is answered when the revision does what the comment asks; a change that does something else does not count.
+The answer has to be in the new version of the marked sentence or in a sentence added right beside it. A sentence anywhere else never answers it.
+A spelling, word-choice, missing-word or punctuation mark is answered when that word or that punctuation is fixed in the new version.
 You never write sentences for the student.`;
 
 const SCHEMA = {
@@ -127,6 +130,9 @@ export const POST = async (request: Request, env: Env): Promise<Response> => {
         };
         if (after.length === 0)
           return { ...base, ticked: true, removed: true, quote: "", reason: "" };
+        const region = answerRegion(matched, i, N)
+          .map((j) => fresh[j]?.text ?? "")
+          .join(" ");
         const from = Math.max(0, Math.min(...after) - 2);
         const to = Math.min(N, Math.max(...after) + 3);
         const around = fresh
@@ -141,12 +147,12 @@ export const POST = async (request: Request, env: Env): Promise<Response> => {
           i > 0
             ? `The sentence before it in the first draft: "${old[i - 1]?.text ?? ""}"`
             : "",
-          `The new version of the marked sentence: "${base.after.join(" ")}"`,
+          `The new version of the marked sentence, with any sentences added right beside it: "${region}"`,
           `The revision around it (¶ starts a paragraph; never copy the ¶):\n${around}`,
           "",
           "answered: true only if the revision does what the comment asks.",
-          "quote: if answered, the new sentence (or the words) from the revision that answer it, copied character for character. Otherwise an empty string.",
-          "reason: if not answered, one sentence to the student saying what is still missing, without writing it for them. Otherwise an empty string.",
+          "quote: if answered, the words from that new version that answer it, copied character for character. Otherwise an empty string.",
+          "reason: if not answered, one sentence to the student saying what their revision still has to change here, without writing it for them. Otherwise an empty string.",
         ]
           .filter((line) => line !== "")
           .join("\n");
@@ -166,7 +172,7 @@ export const POST = async (request: Request, env: Env): Promise<Response> => {
           answered: raw["answered"] === true,
           quote: str(raw["quote"], 1000).replace(/^¶\s*/, "").trim(),
         };
-        const ticked = quoteCheck(verdict, draft);
+        const ticked = quoteCheck(verdict, region);
         const reason = str(raw["reason"], 500).trim();
         if (ticked)
           return {
@@ -182,7 +188,9 @@ export const POST = async (request: Request, env: Env): Promise<Response> => {
             ticked: false,
             removed: false,
             quote: verdict.quote,
-            reason: "The quote for this tick isn't in your draft word for word.",
+            reason: quoteCheck(verdict, draft)
+              ? "The quoted words aren't in the new version of the sentence your teacher marked."
+              : "The quote for this tick isn't in your draft word for word.",
             quoteNotFound: true,
           };
         return {

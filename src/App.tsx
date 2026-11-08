@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
 
+import { Hand } from "./components/Hand";
 import { follow, usePath } from "./router";
 import { EssayView } from "./screens/EssayView";
 import { Home } from "./screens/Home";
@@ -17,7 +18,7 @@ export const MENU = [
   { href: "/key", label: "Marking key" },
 ] as const;
 
-export const FOOTER = "Your essays stay in this browser. Photos are read, never stored.";
+export const FOOTER = "Your essays are saved in this browser. Photos aren’t kept; what was read from them and each check’s result are, so a repeat costs nothing.";
 
 function Bar({ path }: { path: string }): React.JSX.Element {
   const here = path.split("?")[0] ?? "/";
@@ -40,8 +41,11 @@ function Bar({ path }: { path: string }): React.JSX.Element {
 function NotFound(): React.JSX.Element {
   return (
     <section className="lost">
+      <span className="lost-mark" aria-hidden="true">
+        <Hand words="?" size={72} write />
+      </span>
       <h1>Nothing on this page</h1>
-      <p>This link doesn&rsquo;t lead to an essay or a note. It may have been mistyped.</p>
+      <p>This link doesn&rsquo;t lead to an essay or a note. Check the address, or start from the desk.</p>
       <a className="btn" href="/" onClick={follow}>
         Back to the desk
       </a>

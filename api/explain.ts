@@ -28,8 +28,8 @@ async function explainOne(env: Env, words: string, sentence: string): Promise<Pl
     "",
     key
       ? `meaning: copy exactly "${key.meaning}"`
-      : "meaning: what the comment means, in one short plain sentence of at most 12 words.",
-    `todo: one instruction of at most 20 words saying what to change about this sentence. Name the problem, not the fix: no new wording, no corrected spelling, no quotes from the essay.`,
+      : "meaning: what the comment means, in one short plain sentence of at most 12 words. If you aren't sure what a short mark means, start with \"Probably\".",
+    `todo: one instruction to the student of at most 20 words, starting with a verb such as Cut, Split, Add, Explain, Name or Fix, saying what to change in this sentence. Say what to do, not the new wording: no rewritten sentence, no corrected spelling, no quotes from the essay. End with a full stop.`,
   ].join("\n");
   const raw = (await askJSON(env, LLAMA, [{ role: "system", content: SYSTEM }, { role: "user", content: ask }], SCHEMA, 160)) as Record<string, unknown>;
   const meaning = key ? key.meaning : str(raw["meaning"], 200).trim() || "Your teacher left a note on this sentence.";
@@ -43,13 +43,25 @@ export const POST = async (request: Request, env: Env): Promise<Response> => {
     const body = (await readJSON(request, 200_000)) as Record<string, unknown>;
     const marks = Array.isArray(body["marks"]) ? (body["marks"] as unknown[]).slice(0, 40) : [];
     if (marks.length === 0) throw new BadRequest("No comments to explain.");
-    const plains = await Promise.all(
-      marks.map(async (m) => {
-        const o = (typeof m === "object" && m !== null ? m : {}) as Record<string, unknown>;
-        const plain = await explainOne(env, str(o["words"], 300), str(o["sentence"], 1500));
-        return { n: Number(o["n"]), ...plain };
-      }),
-    );
+    // One comment the models can't explain right now gets the marking key's own words, or none; it never
+    // costs the others theirs. Only when none could be explained does the request fail.
+    const failed: unknown[] = [];
+    const plains = (
+      await Promise.all(
+        marks.map(async (m) => {
+          const o = (typeof m === "object" && m !== null ? m : {}) as Record<string, unknown>;
+          const words = str(o["words"], 300);
+          try {
+            return [{ n: Number(o["n"]), ...(await explainOne(env, words, str(o["sentence"], 1500))) }];
+          } catch (error) {
+            failed.push(error);
+            const key = keyFor(words);
+            return key === undefined ? [] : [{ n: Number(o["n"]), meaning: key.meaning, todo: key.todo }];
+          }
+        }),
+      )
+    ).flat();
+    if (failed.length === marks.length) throw failed[0];
     return json({ plains });
   } catch (error) {
     return failure(error);

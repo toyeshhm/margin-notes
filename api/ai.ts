@@ -153,14 +153,15 @@ function hasPicture(input: Record<string, unknown>): boolean {
   return JSON.stringify(input["messages"] ?? []).includes('"image_url"');
 }
 
-// The hosted models to try for this request, in order.
-export function hostsFor(input: Record<string, unknown>): Host[] {
-  return hasPicture(input) ? [NIM, GROQ] : [GROQ, NIM];
+// The hosted models to try for this request, in order. `first` puts one host ahead: Groq's Qwen reads
+// handwriting and the words beside a mark better, NVIDIA's Llama copies a whole page of type more faithfully.
+export function hostsFor(input: Record<string, unknown>, first?: "groq"): Host[] {
+  return hasPicture(input) && first === undefined ? [NIM, GROQ] : [GROQ, NIM];
 }
 
 // The first hosted answer, or "day" when every hosted model said its daily limit is spent (or none has a key).
-async function hosted(env: Env, model: string, input: Record<string, unknown>): Promise<{ response: string } | "day" | "busy"> {
-  const options = hostsFor(input).flatMap((host) => {
+async function hosted(env: Env, model: string, input: Record<string, unknown>, first?: "groq"): Promise<{ response: string } | "day" | "busy"> {
+  const options = hostsFor(input, first).flatMap((host) => {
     const key = host.key(env);
     return key === undefined ? [] : (host.models[model] ?? []).map((hostModel) => ({ host, key, hostModel }));
   });
@@ -174,8 +175,8 @@ async function hosted(env: Env, model: string, input: Record<string, unknown>): 
   return allDay ? "day" : "busy";
 }
 
-export async function run(env: Env, model: string, input: Record<string, unknown>): Promise<unknown> {
-  const fromHost = await hosted(env, model, input);
+export async function run(env: Env, model: string, input: Record<string, unknown>, first?: "groq"): Promise<unknown> {
+  const fromHost = await hosted(env, model, input, first);
   if (typeof fromHost === "object") return fromHost;
   try {
     return await env.AI.run(model, input);
@@ -206,13 +207,14 @@ export async function askJSON(
   messages: { role: string; content: unknown }[],
   schema: Record<string, unknown>,
   maxTokens: number,
+  first?: "groq",
 ): Promise<unknown> {
-  const out = await run(env, model, {
-    messages,
-    response_format: { type: "json_schema", json_schema: schema },
-    max_tokens: maxTokens,
-    temperature: 0.1,
-  });
+  const out = await run(
+    env,
+    model,
+    { messages, response_format: { type: "json_schema", json_schema: schema }, max_tokens: maxTokens, temperature: 0.1 },
+    first,
+  );
   const response = (out as { response?: unknown }).response;
   if (typeof response === "string") return JSON.parse(response) as unknown;
   if (typeof response === "object" && response !== null) return response;
@@ -280,7 +282,7 @@ export async function embed(env: Env, texts: string[]): Promise<number[][]> {
 // The request body as JSON, refusing anything over `maxBytes`. Content-Length is a fast check, but a
 // chunked body has none, so bytes are also counted as they arrive and reading stops past the limit.
 export async function readJSON(request: Request, maxBytes: number): Promise<unknown> {
-  const tooLarge = new BadRequest("That file is too large.");
+  const tooLarge = new BadRequest("That file is too large. Use a smaller photo, or one cropped to the page.");
   if (Number(request.headers.get("content-length") ?? "0") > maxBytes) throw tooLarge;
   const chunks: Uint8Array[] = [];
   let total = 0;

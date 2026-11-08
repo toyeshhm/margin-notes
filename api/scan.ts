@@ -28,7 +28,7 @@ const SHEET_ASK = (count: number): string => `This picture stacks ${String(count
 Each close-up sits under a dark bar labelled MARK 1, MARK 2 and so on, and has a blue box drawn around one of the teacher's marks. Other marks outside the box are not yours: ignore them.
 Answer as JSON with one entry per close-up, in order, each with n (the number on its bar) and:
 kind: "circle" if the pen ringed printed words, "underline" if it drew a line under printed words, "caret" for a ^ showing a missing word, "symbol" for a ¶ or a bracket, otherwise "margin".
-marked: the printed words the teacher's pen ringed or underlined next to this mark, copied exactly, or "" if none.
+marked: the printed (typed, black) words the teacher's pen ringed or underlined next to this mark, copied exactly, or "" if none. Never the red handwriting itself.
 below: the printed words directly under the handwriting, copied exactly, 3 to 10 words, or "" if none.
 beside: the printed words on the same line as the handwriting, nearest to it, copied exactly, 3 to 10 words, or "" if none.`;
 
@@ -40,7 +40,7 @@ Answer as JSON with one entry per close-up, in order, each with n (the number on
 Teachers' shorthand is usually one of: ${VOCABULARY}, or a word written over a ^ (answer "^ " and the word). Read each close-up on its own: do not copy the answer of another close-up.`;
 
 // Part of every cached read's key: change it whenever a prompt or the vision models change, so old reads aren't reused.
-const SCAN_VERSION = 2;
+const SCAN_VERSION = 3;
 
 const INK_KINDS = MARK_KINDS.filter((k) => k !== "comment");
 
@@ -106,7 +106,7 @@ function image(value: unknown): string {
   return url;
 }
 
-function ask(env: Env, url: string, text: string, schema: Record<string, unknown>, maxTokens: number): Promise<unknown> {
+function ask(env: Env, url: string, text: string, schema: Record<string, unknown>, maxTokens: number, first?: "groq"): Promise<unknown> {
   return askJSON(
     env,
     SCOUT,
@@ -116,6 +116,7 @@ function ask(env: Env, url: string, text: string, schema: Record<string, unknown
     ],
     schema,
     maxTokens,
+    first,
   );
 }
 
@@ -123,7 +124,7 @@ function ask(env: Env, url: string, text: string, schema: Record<string, unknown
 // words; otherwise a margin note goes with its line, and writing between lines with the words below it.
 // `hints` are every printed phrase the model gave, best first, for finding the sentence.
 async function readSheet(env: Env, sheet: string, inMargin: boolean[]): Promise<SheetRead[]> {
-  const o = record(await ask(env, sheet, SHEET_ASK(inMargin.length), SHEET_SCHEMA, 250 * inMargin.length + 100));
+  const o = record(await ask(env, sheet, SHEET_ASK(inMargin.length), SHEET_SCHEMA, 250 * inMargin.length + 100, "groq"));
   const items = Array.isArray(o["marks"]) ? (o["marks"] as unknown[]).map(record) : [];
   return inMargin.map((margin, k) => {
     const x = items.find((m) => Number(m["n"]) === k + 1) ?? items[k] ?? {};
@@ -139,7 +140,7 @@ async function readSheet(env: Env, sheet: string, inMargin: boolean[]): Promise<
 
 // The teacher's handwriting for each tight close-up on a sheet.
 async function readWriting(env: Env, sheet: string, count: number): Promise<string[]> {
-  const o = record(await ask(env, sheet, WRITING_ASK(count), WRITING_SCHEMA, 40 * count + 100));
+  const o = record(await ask(env, sheet, WRITING_ASK(count), WRITING_SCHEMA, 40 * count + 100, "groq"));
   const items = Array.isArray(o["marks"]) ? (o["marks"] as unknown[]).map(record) : [];
   return Array.from({ length: count }, (_, k) => {
     const x = items.find((m) => Number(m["n"]) === k + 1) ?? items[k];

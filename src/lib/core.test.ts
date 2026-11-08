@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { align } from "./align";
+import { align, answerRegion } from "./align";
 import { pinMarks, placeMarks } from "./build";
 import { isInstruction, quoteCheck } from "./guards";
 import { keyFor, snapMark } from "./markingKey";
@@ -106,4 +106,13 @@ test("marks run down the page with the sentences: a weakly read mark stays in st
   expect(placeMarks(sentences, [["sentence about"]], [0.12])).toEqual([0]);
   // A single word is weak: the three-word reading beats it.
   expect(placeMarks(sentences, [["sports", "Three sentence about"]])).toEqual([2]);
+});
+
+test("a comment is answered in its sentence's new version or in sentences added beside it, never in a sentence matched to another", () => {
+  // old 0 -> new 0; new 1 added; old 1 -> new 2 and 3 (split); old 2 cut; new 4 added; old 3 -> new 5.
+  const matched = [[0], [2, 3], [], [5]];
+  expect(answerRegion(matched, 1, 6)).toEqual([1, 2, 3, 4]);
+  expect(answerRegion(matched, 0, 6)).toEqual([0, 1]);
+  expect(answerRegion(matched, 3, 6)).toEqual([4, 5]);
+  expect(answerRegion(matched, 2, 6)).toEqual([]);
 });

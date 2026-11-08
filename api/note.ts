@@ -11,6 +11,8 @@ export interface NoteRow {
   typed: boolean;
   quote: string;
   removed: boolean;
+  // The marked sentence as it was in the first draft ("" in notes saved before it was added).
+  before: string;
 }
 
 export interface Note {
@@ -25,7 +27,7 @@ function clean(raw: unknown): Note {
   const o = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
   const rows = (Array.isArray(o["rows"]) ? (o["rows"] as unknown[]) : []).slice(0, 60).map((r) => {
     const x = (typeof r === "object" && r !== null ? r : {}) as Record<string, unknown>;
-    return { n: Number(x["n"]) || 0, mark: str(x["mark"], 300), typed: x["typed"] === true, quote: str(x["quote"], 1000), removed: x["removed"] === true };
+    return { n: Number(x["n"]) || 0, mark: str(x["mark"], 300), typed: x["typed"] === true, quote: str(x["quote"], 1000), removed: x["removed"] === true, before: str(x["before"], 1000) };
   });
   const title = str(o["title"], 200).trim();
   if (title === "" || rows.length === 0) throw new BadRequest("A note needs a title and at least one comment.");

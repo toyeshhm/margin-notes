@@ -13,7 +13,7 @@ export default function Essays(): React.JSX.Element {
     <section className="screen essays">
       <div className="screen-head">
         <h1>My essays</h1>
-        <p className="screen-lede">Every essay you scanned in this browser, with each round you checked. Nothing here is on a server.</p>
+        <p className="screen-lede">Every essay you scanned in this browser, with each round you checked. They are saved in this browser only.</p>
       </div>
       {!storageWorks && <p className="problem">This browser isn&rsquo;t letting Margin Notes save, so essays last only until you close the tab.</p>}
       {essays.length === 0 ? (

@@ -124,7 +124,7 @@ export default function CheckTab({ essay }: { essay: Essay }): React.JSX.Element
           />
           <div className="revise-actions">
             <button type="submit" className="btn" disabled={busy || draft.trim() === ""}>
-              {busy ? "Checking every comment" : essay.rounds.length === 0 ? "Check it" : "Check again"}
+              {busy ? "Checking every comment, up to a minute" : essay.rounds.length === 0 ? "Check it" : "Check again"}
             </button>
             {nextSample !== undefined && (
               <button type="button" className="btn quiet" disabled={busy} onClick={() => {

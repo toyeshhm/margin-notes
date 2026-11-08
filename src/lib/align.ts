@@ -80,3 +80,18 @@ export function cosine(a: readonly number[], b: readonly number[]): number {
   }
   return na === 0 || nb === 0 ? 0 : dot / Math.sqrt(na * nb);
 }
+
+// Where a comment on old sentence `i` can be answered: its new version, plus any sentences added right
+// beside it (lined up with no old sentence), such as a new transition before it or new evidence after it.
+export function answerRegion(matched: readonly (readonly number[])[], i: number, newCount: number): number[] {
+  const after = [...(matched[i] ?? [])].sort((a, b) => a - b);
+  const first = after[0];
+  const last = after[after.length - 1];
+  if (first === undefined || last === undefined) return [];
+  const taken = new Set(matched.flat());
+  let from = first;
+  let to = last;
+  while (from > 0 && !taken.has(from - 1)) from--;
+  while (to < newCount - 1 && !taken.has(to + 1)) to++;
+  return Array.from({ length: to - from + 1 }, (_, k) => from + k);
+}

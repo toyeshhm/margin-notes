@@ -16,7 +16,7 @@ function chunked(parts: string[]): Request {
 test("a chunked body with no Content-Length is refused once it passes the limit", async () => {
   const request = chunked(['{"image":"', "x".repeat(600), "x".repeat(600), '"}']);
   expect(request.headers.get("content-length")).toBeNull();
-  await expect(readJSON(request, 1000)).rejects.toThrow(new BadRequest("That file is too large."));
+  await expect(readJSON(request, 1000)).rejects.toThrow(new BadRequest("That file is too large. Use a smaller photo, or one cropped to the page."));
 });
 
 test("a body under the limit is parsed, and bad JSON is a bad request", async () => {
@@ -44,6 +44,7 @@ test("pictures go to NVIDIA first and plain text to Groq first", () => {
   const picture = { messages: [{ role: "user", content: [{ type: "image_url", image_url: { url: "data:image/png;base64,AA" } }] }] };
   expect(hostsFor(picture).map((h) => h.name)).toEqual(["nvidia", "groq"]);
   expect(hostsFor({ messages: [{ role: "user", content: "hi" }] }).map((h) => h.name)).toEqual(["groq", "nvidia"]);
+  expect(hostsFor(picture, "groq").map((h) => h.name)).toEqual(["groq", "nvidia"]);
 });
 
 test("a per-minute 429 is told apart from a daily one, so only a spent day says the allowance is used up", () => {

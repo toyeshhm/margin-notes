@@ -29,7 +29,7 @@ export function EssayView({ id }: { id: string }): React.JSX.Element {
     return (
       <section className="lost">
         <h1>This essay isn&rsquo;t in this browser</h1>
-        <p>Essays are saved only in the browser that scanned them. It may have been deleted, or scanned on another device.</p>
+        <p>Essays are saved only in the browser that scanned them. Either it was deleted, or it was scanned on another device.</p>
         <a className="btn" href="/essays" onClick={follow}>
           Open My essays
         </a>

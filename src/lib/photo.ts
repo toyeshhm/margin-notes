@@ -35,18 +35,29 @@ function canvas(width: number, height: number): [HTMLCanvasElement, CanvasRender
   return [c, ctx];
 }
 
-// The whole page as a JPEG data URL, at most `max` px on its long side.
-export function pageJPEG(photo: ImageBitmap, max = 1600): string {
-  const s = Math.min(1, max / Math.max(photo.width, photo.height));
-  const [c, ctx] = canvas(photo.width * s, photo.height * s);
-  ctx.drawImage(photo, 0, 0, c.width, c.height);
-  return c.toDataURL("image/jpeg", 0.86);
-}
-
 function saturation(r: number, g: number, b: number): [number, number] {
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   return [max === 0 ? 0 : (max - min) / max, max / 255];
+}
+
+// The whole page as a JPEG data URL, at most `max` px on its long side. `withoutInk` paints the
+// teacher's coloured ink over in paper white, so a vision model copying the typed words isn't misled
+// by a ring round a misspelling or a word written across the type.
+export function pageJPEG(photo: ImageBitmap, max = 1600, withoutInk = false): string {
+  const s = Math.min(1, max / Math.max(photo.width, photo.height));
+  const [c, ctx] = canvas(photo.width * s, photo.height * s);
+  ctx.drawImage(photo, 0, 0, c.width, c.height);
+  if (withoutInk) {
+    const image = ctx.getImageData(0, 0, c.width, c.height);
+    const d = image.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const [sat, v] = saturation(d[i] ?? 0, d[i + 1] ?? 0, d[i + 2] ?? 0);
+      if (sat > 0.28 && v > 0.3) d[i] = d[i + 1] = d[i + 2] = Math.max(235, Math.round(v * 255));
+    }
+    ctx.putImageData(image, 0, 0);
+  }
+  return c.toDataURL("image/jpeg", 0.86);
 }
 
 interface Cells {

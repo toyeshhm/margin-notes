@@ -55,7 +55,7 @@
 .revise { display: grid; gap: 10px; padding: 18px; background: var(--color-shade); border-radius: 4px; }
 .revise-label { font-family: var(--font-display); font-weight: 800; font-size: 28px; text-transform: uppercase; line-height: 1; }
 .revise textarea { width: 100%; resize: vertical; padding: 14px; border: 0; border-radius: 3px; background: var(--color-paper); color: var(--color-type); font: 17px/1.6 var(--font-essay); }
-.revise textarea:focus-visible { outline: 3px solid var(--color-accent); }
+.revise textarea:focus-visible { outline: 3px solid var(--color-tick); }
 .revise-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .draft.paper { box-sizing: border-box; max-width: 100%; width: 100%; min-height: 0; padding: 26px 28px; font-size: 17px; line-height: 1.85; box-shadow: 0 18px 32px rgba(0, 0, 0, 0.4); }
 .draft p { margin: 0 0 4px; }
@@ -96,7 +96,8 @@
 .note-sheet li { display: grid; grid-template-columns: 26px 130px 1fr; gap: 14px; padding: 10px 0; border-bottom: 1px solid rgba(80, 110, 190, 0.25); break-inside: avoid; }
 .note-n { color: var(--color-meta); font-weight: 700; }
 .note-change { display: grid; gap: 2px; }
-.note-label { font-size: 13px; font-weight: 700; color: var(--color-meta); text-transform: uppercase; letter-spacing: 0.04em; }
+.note-before { font-family: var(--font-essay); font-size: 14px; color: var(--color-meta); }
+.note-before.struck { text-decoration: line-through; text-decoration-color: rgba(200, 35, 42, 0.5); }
 .note-change q { font-family: var(--font-essay); font-size: 17px; }
 .not-yet-text { color: var(--color-pen); font-weight: 700; }
 .note-empty p { color: var(--color-ink); }

@@ -1,6 +1,8 @@
 // The index card: every comment, item by item. On the Comments tab each item has the teacher's mark
 // and plain words; once a round is checked, each item shows its tick and quote, or its reason.
 
+import { useEffect, useRef } from "react";
+
 import type { Essay, Round, Verdict } from "../lib/types";
 import { allSentences } from "../lib/text";
 import { Hand, Tick } from "./Hand";
@@ -52,8 +54,13 @@ function Verdict({ v, write, delay }: { v: Verdict; write: boolean; delay: numbe
 export function IndexCard({ essay, open, onOpen, round, onMove, onBeforeAfter, arrive, header }: Props): React.JSX.Element {
   const text = new Map(allSentences(essay.paragraphs).map((s) => [s.id, s.text]));
   const verdicts = new Map(round?.verdicts.map((v) => [v.n, v]));
+  // A comment opened from its pin may be off screen: bring its row into view.
+  const card = useRef<HTMLElement>(null);
+  useEffect(() => {
+    card.current?.querySelector(".row.open")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [open]);
   return (
-    <section className="card" aria-label="Comments">
+    <section className="card" aria-label="Comments" ref={card}>
       <header className="card-head">{header}</header>
       <ol className="card-rows">
         {essay.marks.map((m, i) => {
@@ -77,7 +84,7 @@ export function IndexCard({ essay, open, onOpen, round, onMove, onBeforeAfter, a
                 {v === undefined ? (
                   <span className="row-plain">
                     {m.plain === undefined ? (
-                      <span className="no-plain">No plain words yet: today&rsquo;s free reading allowance is used up.</span>
+                      <span className="no-plain">No plain words yet: the reading models didn&rsquo;t answer when this was read.</span>
                     ) : (
                       <>
                         <strong>{m.plain.meaning}</strong> {m.plain.todo}

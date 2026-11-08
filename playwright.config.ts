@@ -21,6 +21,8 @@ export default defineConfig({
     {
       name: "phone",
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 } },
+      // The AI flows run once, on the laptop size: twice at once would trip the free hosts' per-minute limits.
+      testIgnore: /ai\.spec\.ts/,
     },
   ],
 });

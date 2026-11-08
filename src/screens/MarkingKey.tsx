@@ -26,7 +26,7 @@ export default function MarkingKey(): React.JSX.Element {
     <section className="screen key">
       <div className="screen-head">
         <h1>Marking key</h1>
-        <p className="screen-lede">What common teacher shorthand means, and what it usually asks you to do. Every plain-words line in Margin Notes starts here.</p>
+        <p className="screen-lede">What common teacher shorthand means, and what it usually asks you to do. Plain words for these marks start from these cards.</p>
       </div>
       <ul className="key-grid">
         {markingKey.map((k, i) => (

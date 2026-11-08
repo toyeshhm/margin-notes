@@ -167,7 +167,8 @@ export async function scanPhotos(files: readonly File[], progress: (page: number
     const writing = ink.marks.map(({ core }) => cropWriting(photo, core));
     const image = pageJPEG(photo);
     photos.push(image);
-    const scan = await readPageText(image);
+    // The typed words are read with the pen ink taken out; the marks are read from their own close-ups.
+    const scan = await readPageText(ink.marks.length > 0 ? pageJPEG(photo, 1600, true) : image);
     if (!scan.isEssay) throw new NotAnEssay(files.length > 1 ? `Photo ${String(i + 1)} doesn't show a typed essay page, so nothing was read from it.` : "That photo doesn't show a typed essay page, so nothing was read from it.");
     const paras = toParagraphs(scan.text, i + 1, next);
     next += allSentences(paras).length;

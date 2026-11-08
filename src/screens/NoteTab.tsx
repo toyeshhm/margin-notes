@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { Note } from "../../api/note";
 import { NoteSheet } from "../components/NoteSheet";
 import { saveNote } from "../lib/api";
+import { allSentences } from "../lib/text";
 import type { Essay } from "../lib/types";
 import { follow } from "../router";
 
@@ -13,12 +14,13 @@ export function noteFor(essay: Essay): Note | undefined {
   const round = essay.rounds[essay.rounds.length - 1];
   if (round === undefined) return undefined;
   const verdicts = new Map(round.verdicts.map((v) => [v.n, v]));
+  const text = new Map(allSentences(essay.paragraphs).map((s) => [s.id, s.text]));
   return {
     title: essay.title,
     round: round.n,
     rows: essay.marks.map((m) => {
       const v = verdicts.get(m.n);
-      return { n: m.n, mark: m.words, typed: m.kind === "comment", quote: v?.ticked === true ? v.quote : "", removed: v?.ticked === true && v.removed };
+      return { n: m.n, mark: m.words, typed: m.kind === "comment", quote: v?.ticked === true ? v.quote : "", removed: v?.ticked === true && v.removed, before: text.get(m.sentenceId) ?? "" };
     }),
   };
 }
@@ -63,7 +65,7 @@ export default function NoteTab({ essay }: { essay: Essay }): React.JSX.Element 
         <button type="button" className="btn quiet" onClick={() => {
           window.print();
         }}>
-          Print
+          Print the note
         </button>
         <p className="note-status" role="status">
           {state.kind === "copied" && (

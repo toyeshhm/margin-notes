@@ -67,6 +67,8 @@ export function drawMarks(page: HTMLElement, marks: readonly InkMark[], options:
   const times = new Map<number, [number, number]>();
   let t = delay;
   const textRight = PAGE_W - MARGIN;
+  // Baselines already written in each margin: two notes on one line would write over each other.
+  const used: Record<"left" | "right", number[]> = { left: [], right: [] };
   for (const m of marks) {
     const rects = where.get(m.n);
     const first = rects?.[0];
@@ -88,7 +90,10 @@ export function drawMarks(page: HTMLElement, marks: readonly InkMark[], options:
     const inMargin = (word: string, rect: Rect, side: "left" | "right"): void => {
       const size = Math.max(markSize * 0.82, fit(word, markSize * 0.95, MARGIN - 8));
       const w = handwrite(word, { size, seed: s }).width;
-      note(word, side === "left" ? Math.max(4, MARGIN - 8 - w) : Math.min(textRight + 6, PAGE_W - w - 4), base(rect) + 1, size);
+      let y = base(rect) + 1;
+      while (used[side].some((v) => Math.abs(v - y) < size * 1.1)) y += size * 1.15;
+      used[side].push(y);
+      note(word, side === "left" ? Math.max(4, MARGIN - 8 - w) : Math.min(textRight + 6, PAGE_W - w - 4), y, size);
     };
     const above = (word: string, rect: Rect): void => {
       const size = markSize * 0.8;
