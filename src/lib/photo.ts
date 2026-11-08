@@ -10,7 +10,7 @@ export interface Box {
 }
 
 export interface MarkCrop {
-  image: string;
+  canvas: HTMLCanvasElement;
   // The mark sits outside the typed text block, in a margin.
   inMargin: boolean;
 }
@@ -167,5 +167,24 @@ export function cropMark(photo: ImageBitmap, box: Box, text: Box | undefined, wi
   ctx.lineWidth = 3;
   const pad = 8 * s;
   ctx.strokeRect((box.x0 - left) * s - pad, (box.y0 - top) * s - pad, (box.x1 - box.x0) * s + pad * 2, (box.y1 - box.y0) * s + pad * 2);
-  return { image: c.toDataURL("image/jpeg", 0.88), inMargin };
+  return { canvas: c, inMargin };
+}
+
+// Close-ups stacked into one picture, each under a dark bar numbered "MARK n", so one request reads
+// several marks (a vision request is charged per picture, not per mark).
+export function sheetOf(crops: readonly MarkCrop[], first: number): string {
+  const bar = 44;
+  const width = Math.max(...crops.map((c) => c.canvas.width));
+  const [c, ctx] = canvas(width, crops.reduce((h, k) => h + k.canvas.height + bar, 0));
+  ctx.fillStyle = "rgb(20, 20, 20)";
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillStyle = "white";
+  ctx.font = "bold 32px sans-serif";
+  let y = 0;
+  for (const [i, k] of crops.entries()) {
+    ctx.fillText(`MARK ${String(first + i)}`, 12, y + 34);
+    ctx.drawImage(k.canvas, 0, y + bar);
+    y += bar + k.canvas.height;
+  }
+  return c.toDataURL("image/jpeg", 0.88);
 }

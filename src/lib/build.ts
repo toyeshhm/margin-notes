@@ -1,9 +1,9 @@
 // Turning what was read into an essay: pages of sentences, each mark pinned to its sentence and
 // numbered in reading order, then plain words for every mark.
 
-import { ApiError, explain, scanPage } from "./api";
+import { ApiError, explain, readMarks, readPageText, readWholePage } from "./api";
 import { keyFor } from "./markingKey";
-import { cropMark, findInk, loadPhoto, pageJPEG } from "./photo";
+import { cropMark, findInk, loadPhoto, pageJPEG, sheetOf } from "./photo";
 import { newId } from "./store";
 import { allSentences, findSentence, toParagraphs } from "./text";
 import type { Essay, Mark, MarkKind, Paragraph, Plain } from "./types";
@@ -61,6 +61,9 @@ export async function addPlainWords(paragraphs: readonly Paragraph[], marks: Mar
   });
 }
 
+// Close-ups per request.
+const SHEET = 4;
+
 export class NotAnEssay extends Error {}
 
 // Read every photo (one request per page), then explain the marks. `progress` gets the page being read.
@@ -76,12 +79,19 @@ export async function scanPhotos(files: readonly File[], progress: (page: number
     const crops = ink.marks.map((box) => cropMark(photo, box, ink.text));
     const image = pageJPEG(photo);
     photos.push(image);
-    const scan = await scanPage(image, crops);
+    const scan = await readPageText(image);
     if (!scan.isEssay) throw new NotAnEssay(files.length > 1 ? `Photo ${String(i + 1)} doesn't show a typed essay page, so nothing was read from it.` : "That photo doesn't show a typed essay page, so nothing was read from it.");
     const paras = toParagraphs(scan.text, i + 1, next);
     next += allSentences(paras).length;
     paragraphs.push(...paras);
-    read.push(...scan.marks.map((m) => ({ ...m, page: i + 1 })));
+    const found: ReadMark[] = [];
+    for (let k = 0; k < crops.length; k += SHEET) {
+      const group = crops.slice(k, k + SHEET);
+      const marks = await readMarks(sheetOf(group, 1), group.map((c) => c.inMargin));
+      found.push(...marks.map((m) => ({ ...m, page: i + 1 })));
+    }
+    if (crops.length === 0) found.push(...(await readWholePage(image)).map((m) => ({ ...m, page: i + 1 })));
+    read.push(...found);
   }
   progress(files.length + 1, files.length);
   const marks = await addPlainWords(paragraphs, pinMarks(paragraphs, read));

@@ -1,5 +1,6 @@
-// POST /api/scan { image, crops: [{ image, inMargin }] } -> PageScan
-// Llama 4 Scout reads one photo of a typed page. The browser finds each patch of the teacher's ink
+// POST /api/scan, three shapes: { image } -> { isEssay, text }; { sheet, inMargin: boolean[] } -> { marks };
+// { image, whole: true } -> { marks } (a page with no ink found in the browser).
+// A vision model reads one photo of a typed page. The browser finds each patch of the teacher's ink
 // and sends a close-up of it with a box drawn round it; Scout reads the page's printed text from the
 // whole photo and each mark from its close-up. Nothing is kept.
 
@@ -22,8 +23,9 @@ Put each paragraph on a single line, with a blank line between paragraphs. Answe
 const MARKS_ASK = `This is a photo of a typed essay page that a teacher marked in pen. List every handwritten mark, top to bottom, each with
 words (the handwriting exactly as written), kind ("circle", "underline", "caret", "symbol" or "margin") and near (the printed words it is about, copied exactly, 3 to 10 words).`;
 
-const MARK_ASK = `This is part of a photo of a typed essay page that a teacher marked in pen. A blue box is drawn around one of the teacher's marks.
-Answer as JSON.
+const SHEET_ASK = (count: number): string => `This picture stacks ${String(count)} close-ups from a photo of a typed essay page that a teacher marked in pen.
+Each close-up sits under a dark bar labelled MARK 1, MARK 2 and so on, and has a blue box drawn around one of the teacher's marks.
+Answer as JSON with one entry per close-up, in order, each with n (the number on its bar) and:
 words: only the teacher's handwritten letters or symbol inside the blue box, exactly as written. Never printed (typed) letters, even printed words the pen circled.
 Teachers' shorthand is often one of: awk, frag, RO, wc, sp, trans, cite, so what?, evidence?, ?, ¶, vague, or a word written over a ^.
 kind: "circle" if the pen ringed printed words, "underline" if it drew a line under printed words, "caret" for a ^ showing a missing word, "symbol" for a ¶ or a bracket, otherwise "margin".
@@ -48,16 +50,26 @@ const MARKS_SCHEMA = {
   required: ["marks"],
 };
 
-const MARK_SCHEMA = {
+const SHEET_SCHEMA = {
   type: "object",
   properties: {
-    words: { type: "string" },
-    kind: { type: "string", enum: INK_KINDS },
-    marked: { type: "string" },
-    below: { type: "string" },
-    beside: { type: "string" },
+    marks: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          n: { type: "number" },
+          words: { type: "string" },
+          kind: { type: "string", enum: INK_KINDS },
+          marked: { type: "string" },
+          below: { type: "string" },
+          beside: { type: "string" },
+        },
+        required: ["n", "words", "kind", "marked", "below", "beside"],
+      },
+    },
   },
-  required: ["words", "kind", "marked", "below", "beside"],
+  required: ["marks"],
 };
 
 function record(value: unknown): Record<string, unknown> {
@@ -88,18 +100,23 @@ function ask(env: Env, url: string, text: string, schema: Record<string, unknown
   );
 }
 
-// One mark's close-up: the teacher's words, and the printed words it is about. A ring or underline
-// says which words; otherwise a margin note goes with its line, and writing between lines with the words below it.
-async function readMark(env: Env, crop: { image: string; inMargin: boolean }): Promise<PageScan["marks"][number]> {
-  const o = record(await ask(env, crop.image, MARK_ASK, MARK_SCHEMA, 300));
-  const marked = str(o["marked"], 300).trim();
-  const below = str(o["below"], 300).trim();
-  const beside = str(o["beside"], 300).trim();
-  const long = (t: string): boolean => t.split(/\s+/).filter((w) => w !== "").length >= 3;
-  const order = crop.inMargin ? [beside, below] : [below, beside];
-  const near = (long(marked) ? marked : order.find((t) => t !== "")) ?? marked;
-  const kind = kindOf(o["kind"]);
-  return { words: snapMark(str(o["words"], 200), kind, `${marked} ${below} ${beside}`), kind, near };
+// The teacher's words, and the printed words each is about, for each close-up on a sheet. A ring or
+// underline says which words; otherwise a margin note goes with its line, and writing between lines
+// with the words below it.
+async function readSheet(env: Env, sheet: string, inMargin: boolean[]): Promise<PageScan["marks"]> {
+  const o = record(await ask(env, sheet, SHEET_ASK(inMargin.length), SHEET_SCHEMA, 300 * inMargin.length + 100));
+  const items = Array.isArray(o["marks"]) ? (o["marks"] as unknown[]).map(record) : [];
+  return inMargin.flatMap((margin, k) => {
+    const x = items.find((m) => Number(m["n"]) === k + 1) ?? items[k] ?? {};
+    const marked = str(x["marked"], 300).trim();
+    const below = str(x["below"], 300).trim();
+    const beside = str(x["beside"], 300).trim();
+    const long = (t: string): boolean => t.split(/\s+/).filter((w) => w !== "").length >= 3;
+    const order = margin ? [beside, below] : [below, beside];
+    const near = (long(marked) ? marked : order.find((t) => t !== "")) ?? marked;
+    const kind = kindOf(x["kind"]);
+    return [{ words: snapMark(str(x["words"], 200), kind, `${marked} ${below} ${beside}`), kind, near }];
+  });
 }
 
 // The page's printed text, as plain text (more reliable than JSON for long copies). A reply that
@@ -128,15 +145,18 @@ async function readWholePage(env: Env, page: string): Promise<PageScan["marks"]>
 export const POST = async (request: Request, env: Env): Promise<Response> => {
   try {
     const body = record(await readJSON(request, 12_000_000));
+    if (body["sheet"] !== undefined) {
+      const inMargin = (Array.isArray(body["inMargin"]) ? (body["inMargin"] as unknown[]) : []).slice(0, 8).map((m) => m === true);
+      if (inMargin.length === 0) throw new BadRequest("No marks to read.");
+      const marks = await readSheet(env, image(body["sheet"]), inMargin);
+      return json({ marks: marks.filter((m) => m.words.trim() !== "" && m.near !== "") });
+    }
     const page = image(body["image"]);
-    const crops = (Array.isArray(body["crops"]) ? (body["crops"] as unknown[]) : []).slice(0, 30).map((c) => {
-      const o = record(c);
-      return { image: image(o["image"]), inMargin: o["inMargin"] === true };
-    });
-    const [text, ...marks] = await Promise.all([readText(env, page), ...(crops.length > 0 ? crops.map((c) => readMark(env, c)) : [])]);
-    if (text === undefined) return json({ isEssay: false, text: "", marks: [] } satisfies PageScan);
-    const found = crops.length > 0 ? marks : await readWholePage(env, page);
-    return json({ isEssay: true, text, marks: found.filter((m) => m.words.trim() !== "" && m.near !== "") } satisfies PageScan);
+    if (body["whole"] === true) {
+      return json({ marks: (await readWholePage(env, page)).filter((m) => m.words.trim() !== "" && m.near !== "") });
+    }
+    const text = await readText(env, page);
+    return json(text === undefined ? { isEssay: false, text: "" } : { isEssay: true, text });
   } catch (error) {
     return failure(error);
   }

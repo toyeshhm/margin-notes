@@ -11,8 +11,9 @@ export const BGE = "@cf/baai/bge-m3";
 export class AllowanceUsed extends Error {}
 
 export function json(body: unknown, status = 200): Response {
-  return Response.json(body, { status });
+  return Response.json(body, { status, headers: { "x-groq-debug": lastGroq } });
 }
+let lastGroq = "none";
 
 export function failure(error: unknown): Response {
   if (error instanceof AllowanceUsed) {
@@ -28,8 +29,8 @@ export class BadRequest extends Error {}
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODELS: Record<string, string> = {
-  [SCOUT]: "meta-llama/llama-4-scout-17b-16e-instruct",
-  [LLAMA]: "llama-3.3-70b-versatile",
+  [SCOUT]: "qwen/qwen3.8-27b",
+  [LLAMA]: "openai/gpt-oss-120b",
 };
 // Groq's free tier allows about 30 requests a minute: calls start at least this far apart.
 const GROQ_GAP_MS = 2100;
@@ -39,6 +40,7 @@ let groqTurn: Promise<void> = Promise.resolve();
 export function toGroq(model: string, input: Record<string, unknown>): Record<string, unknown> {
   const { response_format: format, ...rest } = input;
   const body: Record<string, unknown> = { ...rest, model };
+  if (model.startsWith("openai/gpt-oss")) body["reasoning_effort"] = "low";
   const schema = (format as { json_schema?: unknown } | undefined)?.json_schema;
   if (schema !== undefined) body["response_format"] = { type: "json_schema", json_schema: { name: "answer", schema } };
   return body;
@@ -54,7 +56,7 @@ async function groq(env: Env, model: string, input: Record<string, unknown>): Pr
   const groqModel = GROQ_MODELS[model];
   if (env.GROQ_API_KEY === undefined || groqModel === undefined) return undefined;
   const body = JSON.stringify(toGroq(groqModel, input));
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     const turn = groqTurn;
     groqTurn = turn.then(() => sleep(GROQ_GAP_MS));
     await turn;
@@ -71,9 +73,10 @@ async function groq(env: Env, model: string, input: Record<string, unknown>): Pr
         log("warn", "groq gave no text", { model: groqModel });
         return undefined;
       }
+      lastGroq = `${String(res.status)} ${(await res.clone().text()).slice(0, 300).replace(/\s+/g, " ")}`;
       log("warn", "groq refused", { status: res.status, model: groqModel });
-      if (res.status !== 429 || attempt === 1) return undefined;
-      await sleep(Math.min(Number(res.headers.get("retry-after") ?? "5"), 20) * 1000);
+      if ((res.status !== 429 && res.status !== 503) || attempt === 2) return undefined;
+      await sleep(Math.min(Number(res.headers.get("retry-after") ?? "6"), 25) * 1000);
     } catch (error) {
       log("warn", "groq unreachable", { error: error instanceof Error ? error.message : String(error) });
       return undefined;

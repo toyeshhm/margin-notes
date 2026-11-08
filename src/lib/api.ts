@@ -30,8 +30,18 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 
 const post = (body: unknown): RequestInit => ({ method: "POST", body: JSON.stringify(body) });
 
-export function scanPage(image: string, crops: { image: string; inMargin: boolean }[]): Promise<PageScan> {
-  return call<PageScan>("/api/scan", post({ image, crops }));
+export function readPageText(image: string): Promise<{ isEssay: boolean; text: string }> {
+  return call("/api/scan", post({ image }));
+}
+
+export async function readMarks(sheet: string, inMargin: boolean[]): Promise<PageScan["marks"]> {
+  const { marks } = await call<{ marks: PageScan["marks"] }>("/api/scan", post({ sheet, inMargin }));
+  return marks;
+}
+
+export async function readWholePage(image: string): Promise<PageScan["marks"]> {
+  const { marks } = await call<{ marks: PageScan["marks"] }>("/api/scan", post({ image, whole: true }));
+  return marks;
 }
 
 export async function explain(marks: { n: number; words: string; sentence: string }[]): Promise<Map<number, Plain>> {
