@@ -50,7 +50,7 @@ a { color: var(--color-ink); }
 .problem a { color: var(--color-type); }
 .lost { max-width: 720px; margin: 0 auto; padding: 72px 24px; }
 .lost p { color: var(--color-dust); margin: 16px 0 24px; }
-.loading-screen { height: 60vh; }
+.loading-screen { height: 60vh; background: linear-gradient(90deg, #26292c, #2e3235, #26292c); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
 
 /* Home: a gutterless mosaic of graphite-dust pictures, then the desk. */
 .home .mosaic { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; grid-template-rows: 190px 190px; background: var(--color-shade); }

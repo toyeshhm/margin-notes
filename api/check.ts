@@ -189,9 +189,9 @@ export const POST = async (request: Request, env: Env): Promise<Response> => {
       };
     };
     const verdicts: Verdict[] = [];
-    for (let k = 0; k < comments.length; k += 3)
+    for (let k = 0; k < comments.length; k += 6)
       verdicts.push(
-        ...(await Promise.all(comments.slice(k, k + 3).map(judge))),
+        ...(await Promise.all(comments.slice(k, k + 6).map(judge))),
       );
     return json({ verdicts });
   } catch (error) {
