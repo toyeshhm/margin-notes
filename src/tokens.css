@@ -1,0 +1,39 @@
+/* Graphite: the kitchen table at ten at night. Graphite ground, paper page and card,
+   red only for the teacher's ink, green only for what the student answered. */
+@font-face { font-family: "Sofia Sans Extra Condensed"; src: url("./fonts/sofia-sans-extra-condensed-latin-800-normal.woff2") format("woff2"); font-weight: 800; font-display: swap; }
+@font-face { font-family: "Sofia Sans Extra Condensed"; src: url("./fonts/sofia-sans-extra-condensed-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Sofia Sans"; src: url("./fonts/sofia-sans-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Sofia Sans"; src: url("./fonts/sofia-sans-latin-400-italic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Sofia Sans"; src: url("./fonts/sofia-sans-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Sofia Sans"; src: url("./fonts/sofia-sans-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Tinos"; src: url("./fonts/tinos-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Tinos"; src: url("./fonts/tinos-latin-400-italic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Tinos"; src: url("./fonts/tinos-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+
+:root {
+  --font-display: "Sofia Sans Extra Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Sofia Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-essay: "Tinos", "Times New Roman", serif;
+  --color-bg: #3a3d41;
+  --color-shade: #2b2e31;
+  --color-raise: #484c51;
+  --color-ink: #eceef0;
+  --color-dust: #b4bcc4;
+  --color-paper: #fbfbfa;
+  --color-type: #1d1f21;
+  --color-meta: #5d6166;
+  --color-pen: #c8232a;
+  --color-accent: #a6e0b0;
+  --color-tick: #1d7440;
+  --color-lamp: #f6e3b4;
+  --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-fast: 240ms;
+  --motion-slow: 1400ms;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}

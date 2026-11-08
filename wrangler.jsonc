@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "margin-notes",
+  "main": "./worker.ts",
+  // At most the date of the workerd that the pinned wrangler bundles (4.152.0: 2026-10-19).
+  "compatibility_date": "2026-10-15",
+  "compatibility_flags": ["nodejs_compat"],
+  // Each upload gets its own version preview URL; the workers.dev address stays off until launch.
+  "workers_dev": false,
+  "preview_urls": true,
+  "ai": { "binding": "AI" },
+  "d1_databases": [{ "binding": "DB", "database_name": "margin-notes" }],
+  "assets": {
+    "directory": "./dist/",
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS",
+    // Only /api/* runs the Worker; every other path is served from dist/.
+    "run_worker_first": ["/api/*"]
+  }
+}
