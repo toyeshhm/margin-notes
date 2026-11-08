@@ -18,7 +18,8 @@ function Page(): React.JSX.Element {
   useEffect(() => {
     const el = slot.current;
     if (el === null || el.childElementCount > 0) return;
-    el.appendChild(samplePage(laterBells, 0, Math.round(window.innerHeight * 0.78 * (816 / 1056))));
+    const frame = el.closest(".stage")?.clientHeight ?? window.innerHeight;
+    el.appendChild(samplePage(laterBells, 0, Math.round(frame * 0.78 * (816 / 1056))));
   }, []);
   return <div ref={slot} />;
 }
