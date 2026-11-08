@@ -1,11 +1,32 @@
 // Cloudflare runs this Worker only for /api/* (wrangler.jsonc, run_worker_first).
 // Each api/<name>.ts exports one function per HTTP method it answers, taking (request, env).
 
-export interface Env {
-  ASSETS: { fetch(request: Request): Promise<Response> };
+import * as check from "./api/check";
+import * as explain from "./api/explain";
+import * as note from "./api/note";
+import * as scan from "./api/scan";
+
+interface D1Statement {
+  bind(...values: unknown[]): D1Statement;
+  first<T>(): Promise<T | null>;
+  run(): Promise<unknown>;
 }
 
-const routes: Partial<Record<string, Partial<Record<string, (request: Request, env: Env) => Promise<Response>>>>> = {};
+export interface Env {
+  ASSETS: { fetch(request: Request): Promise<Response> };
+  AI: { run(model: string, input: Record<string, unknown>): Promise<unknown> };
+  DB: {
+    prepare(sql: string): D1Statement;
+    batch(statements: D1Statement[]): Promise<unknown>;
+  };
+}
+
+const routes: Partial<Record<string, Partial<Record<string, (request: Request, env: Env) => Promise<Response>>>>> = {
+  "/api/scan": scan,
+  "/api/explain": explain,
+  "/api/check": check,
+  "/api/note": note,
+};
 
 export default {
   fetch(request: Request, env: Env): Promise<Response> | Response {

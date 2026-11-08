@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sample page photo</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #2f3236; }
+      .table { position: absolute; inset: 0; background: #34373b; }
+      .shot { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+      .shot.tilt { transform: translate(-50%, -50%) perspective(1800px) rotateX(4deg) rotateZ(var(--rz, -1.6deg));
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55), 0 6px 14px rgba(0, 0, 0, 0.4); }
+      /* a desk lamp at night: warm light falling off toward the far edge */
+      .lamp { position: absolute; inset: 0; pointer-events: none;
+        background: radial-gradient(ellipse 72% 62% at 42% 38%, rgba(255, 226, 170, 0.14), rgba(0, 0, 0, 0) 58%, rgba(0, 0, 0, 0.36) 100%); }
+    </style>
+  </head>
+  <body>
+    <div class="table"></div>
+    <div class="shot" id="shot"></div>
+    <div class="lamp"></div>
+    <script type="module" src="./photo.ts"></script>
+  </body>
+</html>

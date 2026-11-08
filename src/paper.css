@@ -1,0 +1,28 @@
+/* The printed page: US Letter at 96 dpi (816 x 1056 page px), scaled by --u. */
+.paper {
+  --u: 1px;
+  position: relative;
+  flex: none;
+  width: calc(816 * var(--u));
+  min-height: calc(1056 * var(--u));
+  box-sizing: border-box;
+  padding: calc(96 * var(--u));
+  background: var(--color-paper);
+  color: var(--color-type);
+  font-family: var(--font-essay);
+  font-size: calc(16 * var(--u));
+  line-height: 2;
+  overflow: hidden;
+}
+.paper p { margin: 0; text-indent: calc(48 * var(--u)); }
+.paper .paper-head p { text-indent: 0; }
+.paper .paper-title { text-align: center; }
+.paper .paper-run { position: absolute; top: calc(48 * var(--u)); right: calc(96 * var(--u)); line-height: 1; }
+.paper .staple {
+  position: absolute; left: calc(30 * var(--u)); top: calc(26 * var(--u)); width: calc(46 * var(--u)); height: calc(5 * var(--u));
+  background: #8d949b; border-radius: calc(2 * var(--u)); transform: rotate(-38deg); box-shadow: 0 calc(1 * var(--u)) 0 rgba(0, 0, 0, 0.25);
+}
+.paper svg.ink { position: absolute; inset: 0; width: 100%; height: auto; overflow: visible; pointer-events: none; }
+.pen-line { stroke-dasharray: 1 1; stroke-dashoffset: 1; animation-name: pen-write; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes pen-write { to { stroke-dashoffset: 0; } }
+[data-motion="reduced"] .pen-line { animation: none; stroke-dashoffset: 0; }

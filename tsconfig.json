@@ -15,5 +15,5 @@
     "noPropertyAccessFromIndexSignature": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src", "tests", "api", "worker.ts", "vite.config.ts", "playwright.config.ts"]
+  "include": ["src", "tests", "api", "scripts", "worker.ts", "vite.config.ts", "playwright.config.ts"]
 }
