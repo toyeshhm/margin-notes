@@ -11,9 +11,8 @@ export const BGE = "@cf/baai/bge-m3";
 export class AllowanceUsed extends Error {}
 
 export function json(body: unknown, status = 200): Response {
-  return Response.json(body, { status, headers: { "x-groq-debug": lastGroq } });
+  return Response.json(body, { status });
 }
-let lastGroq = "none";
 
 export function failure(error: unknown): Response {
   if (error instanceof AllowanceUsed) {
@@ -34,6 +33,8 @@ const GROQ_MODELS: Record<string, string> = {
 };
 // Groq's free tier allows about 30 requests a minute: calls start at least this far apart.
 const GROQ_GAP_MS = 2100;
+// A stalled Groq call gives up after this long and the caller falls back to Workers AI.
+const GROQ_TIMEOUT_MS = 45000;
 let groqTurn: Promise<void> = Promise.resolve();
 
 // The Workers AI request body, reshaped for Groq's OpenAI-compatible endpoint.
@@ -65,6 +66,7 @@ async function groq(env: Env, model: string, input: Record<string, unknown>): Pr
         method: "POST",
         headers: { authorization: `Bearer ${env.GROQ_API_KEY}`, "content-type": "application/json" },
         body,
+        signal: AbortSignal.timeout(GROQ_TIMEOUT_MS),
       });
       if (res.ok) {
         const out = (await res.json()) as { choices?: { message?: { content?: unknown } }[] };
@@ -73,7 +75,6 @@ async function groq(env: Env, model: string, input: Record<string, unknown>): Pr
         log("warn", "groq gave no text", { model: groqModel });
         return undefined;
       }
-      lastGroq = `${String(res.status)} ${(await res.clone().text()).slice(0, 300).replace(/\s+/g, " ")}`;
       log("warn", "groq refused", { status: res.status, model: groqModel });
       if ((res.status !== 429 && res.status !== 503) || attempt === 2) return undefined;
       await sleep(Math.min(Number(res.headers.get("retry-after") ?? "6"), 25) * 1000);
