@@ -1,8 +1,25 @@
-// The marking key: one reference card per common teacher mark, written in the teacher's hand.
-// /api/explain starts every plain-words line from these same entries.
+// The marking key: one reference card per common teacher mark, written in the teacher's hand; the
+// mark lifts and writes itself again when the hand comes over its card. /api/explain starts every
+// plain-words line from these same entries.
 
+import { useRewrite } from "../art/rewrite";
 import { Hand } from "../components/Hand";
-import { markingKey } from "../lib/markingKey";
+import { markingKey, type KeyEntry } from "../lib/markingKey";
+
+function KeyCard({ entry, tilt }: { entry: KeyEntry; tilt: number }): React.JSX.Element {
+  const [round, again] = useRewrite(1.4);
+  const also = entry.also.filter((a) => !a.endsWith("."));
+  return (
+    <li className="key-card lifts" style={{ "--tilt": `${String(tilt)}deg` } as React.CSSProperties} onPointerEnter={again}>
+      <span className="key-mark">
+        <Hand key={round} words={entry.mark} size={30} write={round > 0} />
+      </span>
+      <p className="key-meaning">{entry.meaning}</p>
+      <p className="key-todo">{entry.todo}</p>
+      {also.length > 0 && <p className="key-also">Also written {also.slice(0, 3).join(", ")}</p>}
+    </li>
+  );
+}
 
 export default function MarkingKey(): React.JSX.Element {
   return (
@@ -13,14 +30,7 @@ export default function MarkingKey(): React.JSX.Element {
       </div>
       <ul className="key-grid">
         {markingKey.map((k, i) => (
-          <li key={k.mark} className="key-card" style={{ "--tilt": `${String((((i * 37) % 5) - 2) * 0.4)}deg` } as React.CSSProperties}>
-            <span className="key-mark">
-              <Hand words={k.mark} size={30} />
-            </span>
-            <p className="key-meaning">{k.meaning}</p>
-            <p className="key-todo">{k.todo}</p>
-            {k.also.some((a) => !a.endsWith(".")) && <p className="key-also">Also written {k.also.filter((a) => !a.endsWith(".")).slice(0, 3).join(", ")}</p>}
-          </li>
+          <KeyCard key={k.mark} entry={k} tilt={(((i * 37) % 5) - 2) * 0.4} />
         ))}
       </ul>
     </section>

@@ -1,9 +1,11 @@
 // Try a sample: a tray of marked essays written for the app. Each opens straight onto its index
 // card from a scan saved in the repo (made by a real run of the scan on its photos or Word file),
-// so it works without any AI call. Its photos or Word file can be downloaded to try the scan.
+// so it works without any AI call. Its photos or Word file can be downloaded to try the scan. The
+// page photos shift a little under the visitor's hand, like prints on a table.
 
 import { useState } from "react";
 
+import { DriftImg } from "../art/DriftImg";
 import { setFresh } from "../lib/fresh";
 import { newId, saveEssay, useEssays } from "../lib/store";
 import type { Essay } from "../lib/types";
@@ -58,7 +60,7 @@ export default function Samples(): React.JSX.Element {
             <button type="button" className="sample" disabled={busy !== undefined} onClick={() => void open(s.id)}>
               <span className="sample-page" aria-hidden="true">
                 {s.source === "photos" ? (
-                  <img src={`/samples/${s.files[0] ?? ""}`} alt="" loading="lazy" />
+                  <DriftImg src={`/samples/${s.files[0] ?? ""}`} depth={[10, -8, 12][i % 3] ?? 10} lazy />
                 ) : (
                   <>
                     <span className="sample-lines" />

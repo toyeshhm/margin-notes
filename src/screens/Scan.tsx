@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { DriftImg } from "../art/DriftImg";
 import { ApiError } from "../lib/api";
 import { NotAnEssay, scanPhotos } from "../lib/build";
 import { readWordFile } from "../lib/docx";
@@ -96,8 +97,8 @@ function Photos(): React.JSX.Element {
         {files.length === 0 ? (
           <div className="drop-empty">
             <span className="drop-art" aria-hidden="true">
-              <img src="/assets/page1-dust.webp" alt="" />
-              <img src="/assets/scan-plane.webp" alt="" />
+              <DriftImg src="/assets/page1-dust.webp" depth={9} zoom={1} />
+              <DriftImg src="/assets/scan-plane.webp" depth={-14} zoom={1} />
             </span>
             <p className="drop-title">Drop a photo of each marked page here</p>
             <p>One to four pages, in order. Typed essays marked by hand, in any colour of pen.</p>

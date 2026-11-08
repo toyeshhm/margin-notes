@@ -1,9 +1,13 @@
 // The home desk: the kitchen table at night seen from above. Graphite-dust pictures of the
-// student's own things across the top, the Margin Notes index card in the middle, and the menu laid
-// out as objects on the desk.
+// student's own things across the top, which turn and shift with the visitor's hand, the Margin
+// Notes index card in the middle, and the menu laid out as objects on the desk.
 
+import { Orbit } from "../art/Orbit";
+import { useDrift } from "../art/drift";
+import { askForTilt } from "../art/pointer";
+import { useRewrite } from "../art/rewrite";
+import { PAGE_TURN, PENCIL_TURN } from "../art/sheets";
 import { Hand, Tick } from "../components/Hand";
-import { prefersReducedMotion } from "../motion";
 import { follow } from "../router";
 
 const OBJECTS = [
@@ -13,7 +17,8 @@ const OBJECTS = [
   { href: "/key", label: "Marking key", hint: "What each mark means", art: "cards" },
 ] as const;
 
-function Art({ kind }: { kind: (typeof OBJECTS)[number]["art"] }): React.JSX.Element {
+function Art({ kind, round }: { kind: (typeof OBJECTS)[number]["art"]; round: number }): React.JSX.Element {
+  const write = round > 0;
   if (kind === "phone") {
     return (
       <span className="obj-phone" aria-hidden="true">
@@ -27,7 +32,7 @@ function Art({ kind }: { kind: (typeof OBJECTS)[number]["art"] }): React.JSX.Ele
         <span />
         <span />
         <span>
-          <Hand words="awk" size={13} />
+          <Hand key={round} words="awk" size={13} write={write} />
         </span>
       </span>
     );
@@ -36,47 +41,69 @@ function Art({ kind }: { kind: (typeof OBJECTS)[number]["art"] }): React.JSX.Ele
     return (
       <span className="obj-folder" aria-hidden="true">
         <span className="tab-label">Round 2</span>
-        <Tick size={22} seed={4} />
+        <Tick key={round} size={22} seed={4} write={write} />
       </span>
     );
   }
   return (
     <span className="obj-cards" aria-hidden="true">
       <span>
-        <Hand words="frag" size={13} />
+        <Hand key={round} words="frag" size={13} write={write} />
       </span>
       <span>
-        <Hand words="sp" size={13} />
+        <Hand key={round} words="sp" size={13} write={write} delay={0.3} />
       </span>
       <span>
-        <Hand words="so what?" size={13} />
+        <Hand key={round} words="so what?" size={13} write={write} delay={0.5} />
       </span>
     </span>
+  );
+}
+
+function DeskObject({ href, label, hint, art }: (typeof OBJECTS)[number]): React.JSX.Element {
+  const [round, again] = useRewrite(1.6);
+  return (
+    <a className="object" href={href} onClick={follow} onPointerEnter={again}>
+      <Art kind={art} round={round} />
+      <span className="obj-text">
+        <span className="obj-label">{label}</span>
+        <span className="obj-hint">{hint}</span>
+      </span>
+    </a>
+  );
+}
+
+// The two depth clouds turn with the hand; the two page stills slide against it at different
+// depths; the paper tiles write their marks again when the hand comes over them.
+function Mosaic(): React.JSX.Element {
+  const page = useDrift<HTMLImageElement>(18, 1.12);
+  const side = useDrift<HTMLImageElement>(-12, 1.12);
+  const [awk, rewriteAwk] = useRewrite();
+  const [tick, rewriteTick] = useRewrite();
+  return (
+    <div className="mosaic" aria-hidden="true" onClick={askForTilt}>
+      <Orbit className="m-pencil" still="/assets/turn-pencil.webp" {...PENCIL_TURN} />
+      <span className="m-awk lifts" onPointerEnter={rewriteAwk}>
+        <Hand key={awk} words="awk" size={56} write delay={awk === 0 ? 0.4 : 0} />
+      </span>
+      <Orbit className="m-relief" still="/assets/turn-page.webp" {...PAGE_TURN} />
+      <span className="m-page m-frame">
+        <img ref={page} src="/assets/home-page1.webp" alt="" />
+      </span>
+      <span className="m-tick lifts" onPointerEnter={rewriteTick}>
+        <Tick key={tick} size={70} write delay={tick === 0 ? 1.4 : 0} seed={9} />
+      </span>
+      <span className="m-side m-frame">
+        <img ref={side} src="/assets/page1-side.webp" alt="" />
+      </span>
+    </div>
   );
 }
 
 export function Home(): React.JSX.Element {
   return (
     <div className="home">
-      <div className="mosaic" aria-hidden="true">
-        <img className="m-pencil" src="/assets/home-pencil.webp" alt="" />
-        <span className="m-awk">
-          <Hand words="awk" size={56} write delay={0.4} />
-        </span>
-        {prefersReducedMotion() ? (
-          <img className="m-relief" src="/assets/page1-relief.webp" alt="" />
-        ) : (
-          <video className="m-relief" autoPlay muted loop playsInline poster="/assets/page1-relief.webp">
-            <source src="/assets/relief-loop.webm" type="video/webm" />
-            <source src="/assets/relief-loop.mp4" type="video/mp4" />
-          </video>
-        )}
-        <img className="m-page" src="/assets/home-page1.webp" alt="" />
-        <span className="m-tick">
-          <Tick size={70} write delay={1.4} seed={9} />
-        </span>
-        <img className="m-side" src="/assets/page1-side.webp" alt="" />
-      </div>
+      <Mosaic />
       <section className="desk">
         <div className="index-card hero-card">
           <h1>Margin Notes</h1>
@@ -94,13 +121,7 @@ export function Home(): React.JSX.Element {
         <ul className="objects">
           {OBJECTS.map((o) => (
             <li key={o.href}>
-              <a className="object" href={o.href} onClick={follow}>
-                <Art kind={o.art} />
-                <span className="obj-text">
-                  <span className="obj-label">{o.label}</span>
-                  <span className="obj-hint">{o.hint}</span>
-                </span>
-              </a>
+              <DeskObject {...o} />
             </li>
           ))}
         </ul>

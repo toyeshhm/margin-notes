@@ -55,6 +55,18 @@ a { color: var(--color-ink); }
 /* Home: a gutterless mosaic of graphite-dust pictures, then the desk. */
 .home .mosaic { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; grid-template-rows: 190px 190px; background: var(--color-shade); }
 .mosaic > * { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Pictures that answer the hand: the turning clouds draw on a canvas over their still; the stills
+   slide inside their frames. Horizontal drags on a phone turn them, vertical ones still scroll. */
+.mosaic, .band { touch-action: pan-y; }
+.orbit { position: relative; overflow: hidden; background: var(--color-shade); }
+.orbit img, .orbit canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.orbit canvas { opacity: 0; transition: opacity 0.6s var(--motion-ease); }
+.orbit[data-ready] canvas { opacity: 1; }
+.m-frame { position: relative; overflow: hidden; }
+.m-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Ink on the paper tiles lifts off the page when the hand comes over it, and writes itself again. */
+.lifts .hand-wrap, .lifts .tick { display: inline-block; transition: transform var(--motion-fast) var(--motion-ease), filter var(--motion-fast) var(--motion-ease); }
+.lifts:hover .hand-wrap, .lifts:hover .tick { transform: translateY(-5px); filter: drop-shadow(0 6px 3px rgba(29, 31, 33, 0.28)); }
 .m-pencil { grid-row: 1 / 3; }
 .m-awk { display: grid; place-items: center; background: var(--color-paper);
   background-image: repeating-linear-gradient(transparent 0 31px, rgba(80, 110, 190, 0.22) 31px 32px); border-top: 34px solid var(--color-paper); }
@@ -62,7 +74,8 @@ a { color: var(--color-ink); }
 .m-relief { grid-column: 3 / 5; }
 .m-page { grid-column: 5; grid-row: 1 / 3; }
 .m-tick { display: grid; place-items: center; background: var(--color-accent); grid-column: 4; grid-row: 2; }
-.m-side { grid-column: 2 / 4; grid-row: 2; object-position: 70% 30%; }
+.m-side { grid-column: 2 / 4; grid-row: 2; }
+.m-side img { object-position: 70% 30%; }
 .desk { max-width: 1240px; margin: 0 auto; padding: 36px 24px 12px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
 .index-card { position: relative; background: var(--color-paper); color: var(--color-type); padding: 34px 32px 30px; border-radius: 2px;
   background-image: repeating-linear-gradient(transparent 0 29px, rgba(80, 110, 190, 0.2) 29px 30px); background-position: 0 6px;
@@ -95,10 +108,23 @@ a { color: var(--color-ink); }
 .obj-cards span:nth-child(1) { top: 0; left: 0; transform: rotate(-6deg); }
 .obj-cards span:nth-child(2) { top: 28px; left: 8px; transform: rotate(3deg); }
 .obj-cards span:nth-child(3) { top: 56px; left: 2px; transform: rotate(-2deg); }
+/* On hover the objects' art moves the way the thing would: the phone lifts toward you, the sample
+   sheets fan, the folder's tick is written again, the key cards spread. The labels don't move. */
+.obj-phone, .obj-phone img, .obj-stack span, .obj-cards span, .obj-folder { transition: transform var(--motion-slow) var(--motion-ease), box-shadow var(--motion-slow) var(--motion-ease), object-position var(--motion-slow) var(--motion-ease); }
+.object:hover .obj-phone { transform: rotate(-1.5deg) translateY(-6px); box-shadow: 0 16px 24px rgba(0, 0, 0, 0.5); }
+.object:hover .obj-phone img { object-position: 80% 50%; }
+.object:hover .obj-stack span:nth-child(1) { transform: rotate(-13deg) translate(-14px, 6px); }
+.object:hover .obj-stack span:nth-child(2) { transform: rotate(9deg) translate(12px, 0); }
+.object:hover .obj-stack span:nth-child(3) { transform: translateY(-4px); box-shadow: 0 10px 16px rgba(0, 0, 0, 0.5); }
+.object:hover .obj-folder { transform: translateY(-4px); box-shadow: 0 12px 18px rgba(0, 0, 0, 0.5); }
+.object:hover .obj-cards span:nth-child(1) { transform: rotate(-9deg) translate(-6px, -6px); }
+.object:hover .obj-cards span:nth-child(3) { transform: rotate(1deg) translate(4px, 8px); }
+[data-motion="reduced"] .object .obj-phone, [data-motion="reduced"] .object .obj-phone img, [data-motion="reduced"] .object .obj-stack span,
+[data-motion="reduced"] .object .obj-cards span, [data-motion="reduced"] .object .obj-folder, [data-motion="reduced"] .lifts * { transition: none; }
 
 /* The essay: the title band of graphite dust, then the pages and the card. */
 .band { position: relative; display: grid; grid-template-columns: 42% 1fr; align-items: end; min-height: 230px; padding: 28px 24px 0; background: var(--color-shade); overflow: hidden; }
-.band-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.9; }
+.band-art { position: absolute; left: 0; top: 0; bottom: 0; width: 66%; opacity: 0.92; mask-image: linear-gradient(90deg, #000 70%, transparent); }
 .band-text { position: relative; grid-column: 2; padding-bottom: 18px; }
 .band h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(48px, 7vw, 104px); line-height: 0.9; text-transform: uppercase; color: #fff; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6); }
 .band-meta { margin: 10px 0 0; color: var(--color-ink); font-weight: 600; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8); }
@@ -115,6 +141,9 @@ a { color: var(--color-ink); }
 .paper.choosing .s:hover { background: #dbf1df; }
 .paper .ink-layer { position: absolute; inset: 0; pointer-events: none; }
 .paper .ink-layer svg { position: absolute; left: 0; top: 0; width: 100%; height: auto; overflow: visible; }
+.paper .ink-layer g.mark { transition: transform var(--motion-fast) var(--motion-ease), filter var(--motion-fast) var(--motion-ease); }
+.paper .ink-layer g.mark.lift { transform: translateY(-5px); filter: drop-shadow(0 6px 2px rgba(29, 31, 33, 0.3)); }
+[data-motion="reduced"] .paper .ink-layer g.mark { transition: none; }
 .paper .t[data-c] { position: relative; }
 .paper .t.typed { background: rgba(200, 35, 42, 0.1); box-shadow: inset 0 -2px 0 rgba(200, 35, 42, 0.6); }
 .choose { margin: 0; padding: 10px 14px; background: var(--color-accent); color: var(--color-shade); border-radius: 3px; font-weight: 600; }
@@ -174,8 +203,8 @@ a { color: var(--color-ink); }
 .drop-empty p { color: var(--color-dust); }
 .drop-art { position: relative; display: block; height: 170px; margin: 0 auto 18px; width: 260px; }
 .drop-art img { position: absolute; top: 0; width: 132px; height: 165px; object-fit: cover; box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5); }
-.drop-art img:first-child { left: 18px; transform: rotate(-6deg); }
-.drop-art img:last-child { right: 18px; transform: rotate(5deg); }
+.drop-art img:first-child { left: 18px; rotate: -6deg; }
+.drop-art img:last-child { right: 18px; rotate: 5deg; }
 .drop-art.word .doc { position: absolute; left: 50%; top: 0; width: 132px; height: 165px; margin-left: -66px; background: var(--color-paper); transform: rotate(-3deg); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
   background-image: repeating-linear-gradient(transparent 0 10px, rgba(29, 31, 33, 0.5) 10px 11px, transparent 11px 18px); background-size: 70% 100%; background-repeat: no-repeat; background-position: 14px 22px; }
 .drop-art.word .bubble { position: absolute; left: 92px; top: 34px; width: 128px; padding: 6px 8px; background: #fff; border-left: 3px solid var(--color-pen); color: var(--color-pen); font-size: 12px; line-height: 1.3; text-align: left; box-shadow: 0 6px 12px rgba(0, 0, 0, 0.35); }
@@ -201,10 +230,12 @@ a { color: var(--color-ink); }
   .home .mosaic { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 130px 130px; }
   .m-pencil { grid-row: 1; grid-column: 1 / 3; }
   .m-awk { grid-column: 3; grid-row: 1; }
+  .m-awk svg.hand { width: 82%; height: auto; }
   .m-relief { grid-column: 1 / 3; grid-row: 2; }
   .m-tick { grid-column: 3; grid-row: 2; }
   .m-page, .m-side { display: none; }
   .band { grid-template-columns: 1fr; min-height: 170px; padding: 20px 16px 0; }
+  .band-art { width: 100%; mask-image: none; opacity: 0.8; }
   .band-text, .essay-tabs { grid-column: 1; }
   .screen { padding: 24px 16px; }
 }

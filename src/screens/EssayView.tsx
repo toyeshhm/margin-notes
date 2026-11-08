@@ -1,7 +1,10 @@
-// One essay: its title band and three tabs, Comments, Check my revision, Note for your teacher.
+// One essay: its title band, where the pencil and eraser in graphite dust turn with the visitor's
+// hand, and three tabs, Comments, Check my revision, Note for your teacher.
 
 import { lazy, Suspense, useState } from "react";
 
+import { Orbit } from "../art/Orbit";
+import { BAND_TURN } from "../art/sheets";
 import { takeFresh } from "../lib/fresh";
 import { getEssay, useEssays } from "../lib/store";
 import { follow, usePath } from "../router";
@@ -37,7 +40,7 @@ export function EssayView({ id }: { id: string }): React.JSX.Element {
   return (
     <article className="essay">
       <header className="band">
-        <img className="band-art" src="/assets/band-pages.webp" alt="" />
+        <Orbit className="band-art" still="/assets/turn-band.webp" {...BAND_TURN} />
         <div className="band-text">
           <h1>{essay.title}</h1>
           <p className="band-meta">

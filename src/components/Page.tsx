@@ -1,8 +1,9 @@
 // One typed page of an essay with the teacher's marks redrawn in red pen at their words, and a
 // numbered pin beside each marked sentence. Pins drag to another sentence; the open comment's
-// sentence is lit.
+// sentence is lit. When the hand comes over a marked sentence or its pin, that mark's ink lifts off
+// the page.
 
-import { useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react";
 
 import { anchors, drawMarks, type InkMark } from "../ink/marks";
 import { findSpan } from "../lib/text";
@@ -72,6 +73,7 @@ export function Page({ essay, page, width, open, moving, write, delay, onOpen, o
   const [ink, setInk] = useState("");
   const [pins, setPins] = useState<{ n: number; y: number }[]>([]);
   const [drag, setDrag] = useState<{ n: number; dy: number; startY: number } | undefined>();
+  const [lift, setLift] = useState<number | undefined>();
   const u = width / 816;
   const { paragraphs, marks } = useMemo(() => {
     const own = essay.paragraphs.filter((p) => p.sentences[0]?.page === page);
@@ -104,6 +106,22 @@ export function Page({ essay, page, width, open, moving, write, delay, onOpen, o
     setPins(placed);
   }, [marks, width, write, delay, onInk, page]);
 
+  useEffect(() => {
+    const el = ref.current;
+    if (el === null) return;
+    for (const g of el.querySelectorAll(".ink-layer g.mark")) g.classList.toggle("lift", g.getAttribute("data-n") === String(lift));
+  }, [lift, ink]);
+  const over = (e: PointerEvent<HTMLElement>): void => {
+    const target = e.target as HTMLElement;
+    const marked = target.closest("[data-c]")?.getAttribute("data-c");
+    if (marked !== undefined && marked !== null) {
+      setLift(Number(marked));
+      return;
+    }
+    const sentence = target.closest(".s")?.getAttribute("data-s");
+    setLift(marks.find((m) => m.sentenceId === sentence)?.n);
+  };
+
   const down = (n: number) => (e: PointerEvent<HTMLButtonElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     setDrag({ n, dy: 0, startY: e.clientY });
@@ -130,6 +148,10 @@ export function Page({ essay, page, width, open, moving, write, delay, onOpen, o
         className={`paper${moving !== undefined ? " choosing" : ""}`}
         style={{ "--u": `${String(u)}px` } as React.CSSProperties}
         data-page={page}
+        onPointerOver={over}
+        onPointerLeave={() => {
+          setLift(undefined);
+        }}
         onClick={(e) => {
           if (moving === undefined) return;
           const s = (e.target as HTMLElement).closest(".s");
@@ -175,6 +197,12 @@ export function Page({ essay, page, width, open, moving, write, delay, onOpen, o
           style={{ top: y * u, transform: drag?.n === n ? `translateY(${String(drag.dy)}px)` : undefined, animationDelay: arrive === undefined ? undefined : `${((arrive.get(n) ?? 0) - 0.05).toFixed(2)}s` }}
           aria-label={`Comment ${String(n)}`}
           aria-pressed={n === open}
+          onPointerEnter={() => {
+            setLift(n);
+          }}
+          onPointerLeave={() => {
+            setLift(undefined);
+          }}
           onPointerDown={down(n)}
           onPointerMove={move}
           onPointerUp={up(n)}
