@@ -11,7 +11,7 @@ export interface KeyEntry {
 
 export const markingKey: readonly KeyEntry[] = [
   { mark: "awk", meaning: "This sentence is hard to follow.", todo: "Say it more simply, or split it in two.", also: ["awkward", "awk."] },
-  { mark: "frag", meaning: "This is not a complete sentence.", todo: "Join it to the sentence before, or add what it is missing.", also: ["fragment", "frag.", "sentence fragment"] },
+  { mark: "frag", meaning: "This is not a complete sentence.", todo: "Join it to the sentence before it, or add a main clause.", also: ["fragment", "frag.", "sentence fragment"] },
   { mark: "RO", meaning: "Two sentences run together.", todo: "Split them with a period, or join them with and, but or because.", also: ["run-on", "run on", "r/o", "ro", "cs", "comma splice"] },
   { mark: "¶", meaning: "Start a new paragraph here.", todo: "Begin a new paragraph where the new idea starts.", also: ["para", "new para", "new paragraph", "np", "p"] },
   { mark: "^", meaning: "Something is missing here.", todo: "Add the word or words written above the mark.", also: ["caret", "insert"] },
@@ -19,6 +19,7 @@ export const markingKey: readonly KeyEntry[] = [
   { mark: "?", meaning: "Your teacher is not sure what you mean.", todo: "Make the point clearer in your own words.", also: ["??", "unclear", "what?", "huh?", "meaning?"] },
   { mark: "so what?", meaning: "This point needs a reason it matters.", todo: "Add a sentence that ties it to your argument.", also: ["so what", "why does this matter?", "significance?"] },
   { mark: "evidence?", meaning: "This claim needs support.", todo: "Add a source, a fact or an example, then explain it.", also: ["evidence", "support?", "proof?", "examples?", "example?", "support"] },
+  { mark: "proves?", meaning: "This claim is stronger than your evidence.", todo: "Soften the claim, or show why the evidence is enough.", also: ["prove?", "proves", "really proves?", "proof of this?"] },
   { mark: "wc", meaning: "Word choice: this word is not quite right.", todo: "Pick a more exact or more formal word.", also: ["ww", "word choice", "wrong word", "diction", "wc?"] },
   { mark: "trans", meaning: "This needs a transition.", todo: "Add words that link this idea to the one before.", also: ["transition", "trans?", "tr", "flow?"] },
   { mark: "cite", meaning: "Say where this comes from.", todo: "Name the source in the sentence or in parentheses.", also: ["citation", "cite?", "source?", "citation needed", "source"] },
