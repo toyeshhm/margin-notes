@@ -48,20 +48,22 @@ export function splitSentences(paragraph: string): string[] {
 
 // Plain text (paragraphs split by blank lines) into paragraphs of sentences with ids.
 // A paragraph of short lines with no closing punctuation (an essay's heading block) keeps each line.
+// A running head ("Okafor 2") is not part of the essay.
+export const RUNNING_HEAD = /^[A-Z][\w'-]* \d{1,2}$/;
+
 export function toParagraphs(text: string, page: number, startId = 0): Paragraph[] {
   let next = startId;
   const blocks = text
     .replace(/\r/g, "")
     .split(/\n\s*\n/)
     .map((b) => b.trim())
-    // A running head ("Okafor 2") is not part of the essay.
-    .filter((b) => b !== "" && !/^[A-Z][\w'-]* \d{1,2}$/.test(b));
+    .filter((b) => b !== "" && !RUNNING_HEAD.test(b));
   let body = false;
   return blocks.map((block) => {
     const lines = block.split("\n").map((l) => l.trim()).filter((l) => l !== "");
     // Heading lines (name, teacher, class, date, title) are short with no closing punctuation,
-    // and come before the first real paragraph of the essay.
-    const short = lines.every((l) => l.length < 80 && !/[.!?]["”]?$/.test(l));
+    // and come before the first real paragraph of the essay. (A typed line of a paragraph is longer.)
+    const short = lines.every((l) => l.length < 60 && !/[.!?]["”]?$/.test(l));
     const heading = !body && short && (lines.length > 1 || startId === 0);
     if (!heading) body = true;
     const parts = heading ? lines : splitSentences(lines.join(" "));

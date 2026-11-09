@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import type { Note } from "../../api/note";
+import { Hand } from "../components/Hand";
 import { NoteSheet } from "../components/NoteSheet";
 import { loadNote } from "../lib/api";
 
@@ -38,6 +39,9 @@ export default function SharedNote({ id }: { id: string }): React.JSX.Element {
       {state.kind === "loading" && <div className="note-sheet loading-sheet" aria-label="Loading the note" />}
       {state.kind === "error" && (
         <section className="lost">
+          <span className="lost-mark" aria-hidden="true">
+            <Hand words="?" size={72} write />
+          </span>
           <h1>No note here</h1>
           <p>{state.message}</p>
         </section>

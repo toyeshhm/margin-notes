@@ -7,6 +7,8 @@
       html, body { margin: 0; height: 100%; overflow: hidden; background: #2f3236; }
       .table { position: absolute; inset: 0; background: #34373b; }
       .shot { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+      /* pen ink is see-through: the type stays black where a stroke crosses it */
+      .shot svg { mix-blend-mode: multiply; }
       .shot.tilt { transform: translate(-50%, -50%) perspective(1800px) rotateX(4deg) rotateZ(var(--rz, -1.6deg));
         box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55), 0 6px 14px rgba(0, 0, 0, 0.4); }
       /* a desk lamp at night: warm light falling off toward the far edge */

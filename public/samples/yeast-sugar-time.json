@@ -6,16 +6,21 @@
    "sentences": [
     {
      "id": "s0",
-     "text": "Ms. Tran",
+     "text": "Priya Shah",
      "page": 1
     },
     {
      "id": "s1",
-     "text": "Biology 9",
+     "text": "Ms. Tran",
      "page": 1
     },
     {
      "id": "s2",
+     "text": "Biology 9",
+     "page": 1
+    },
+    {
+     "id": "s3",
      "text": "29 October 2026",
      "page": 1
     }
@@ -25,7 +30,7 @@
   {
    "sentences": [
     {
-     "id": "s3",
+     "id": "s4",
      "text": "Yeast, Sugar and Time",
      "page": 1
     }
@@ -35,12 +40,12 @@
   {
    "sentences": [
     {
-     "id": "s4",
+     "id": "s5",
      "text": "We wanted to know whether the amount of sugar changes how fast yeast makes carbon dioxide.",
      "page": 1
     },
     {
-     "id": "s5",
+     "id": "s6",
      "text": "Our hypothesis is that more sugar would make the balloon grow faster.",
      "page": 1
     }
@@ -50,22 +55,22 @@
   {
    "sentences": [
     {
-     "id": "s6",
+     "id": "s7",
      "text": "We mixed one packet of yeast with 100 mL of warm water in each of four bottles.",
      "page": 1
     },
     {
-     "id": "s7",
+     "id": "s8",
      "text": "Each bottle got 0, 5, 10 or 20 grams of sugar, and we stretched a balloon over its neck.",
      "page": 1
     },
     {
-     "id": "s8",
+     "id": "s9",
      "text": "Every five minutes for thirty minutes we measured around each balloon with a string and a ruler.",
      "page": 1
     },
     {
-     "id": "s9",
+     "id": "s10",
      "text": "We kept the water warm the whole time.",
      "page": 1
     }
@@ -75,12 +80,12 @@
   {
    "sentences": [
     {
-     "id": "s10",
+     "id": "s11",
      "text": "After thirty minutes the balloon on the 20 gram bottle was a lot bigger than the others.",
      "page": 1
     },
     {
-     "id": "s11",
+     "id": "s12",
      "text": "The bottle with no sugar did not change at all.",
      "page": 1
     }
@@ -90,22 +95,22 @@
   {
    "sentences": [
     {
-     "id": "s12",
+     "id": "s13",
      "text": "More sugar made the balloons grow faster, which proves our hypothesis.",
      "page": 1
     },
     {
-     "id": "s13",
+     "id": "s14",
      "text": "This happens because yeast breaks down sugar for energy and gives off carbon dioxide as it does.",
      "page": 1
     },
     {
-     "id": "s14",
-     "text": "The temperature also matters because yeast is alive.",
+     "id": "s15",
+     "text": "The temprature also matters because yeast is alive.",
      "page": 1
     },
     {
-     "id": "s15",
+     "id": "s16",
      "text": "We only did each bottle once.",
      "page": 1
     }
@@ -117,67 +122,67 @@
   {
    "n": 1,
    "words": "tense",
-   "kind": "margin",
-   "near": "Our hypothesis is that more sugar would make the balloon grow faster.",
-   "sentenceId": "s5",
+   "kind": "underline",
+   "near": "Our hypothesis is that more sugar would make the balloon grow",
+   "sentenceId": "s6",
    "plain": {
     "meaning": "The verb tense changes here.",
-    "todo": "Inconsistent verb tense"
+    "todo": "Change the verb tense to match the rest of the essay."
    }
   },
   {
    "n": 2,
-   "words": "vague",
+   "words": "how warm?",
    "kind": "underline",
-   "near": "the 20 gram bottle was a lot bigger than the others.",
+   "near": "the water",
    "sentenceId": "s10",
    "plain": {
-    "meaning": "This is too general.",
-    "todo": "Problem: description is vague; lacks specific measurement or comparison details."
+    "meaning": "Explain how warm the water was.",
+    "todo": "Add a description of the water’s temperature in that sentence."
    }
   },
   {
    "n": 3,
    "words": "vague",
-   "kind": "underline",
-   "near": "minutes the balloon on the 20 gram bottle was a lot bigger than the others.",
-   "sentenceId": "s10",
+   "kind": "circle",
+   "near": "a lot bigger",
+   "sentenceId": "s11",
    "plain": {
     "meaning": "This is too general.",
-    "todo": "Problem: description is vague; missing precise size or quantitative comparison."
+    "todo": "Specify the size difference."
    }
   },
   {
    "n": 4,
    "words": "proves?",
    "kind": "underline",
-   "near": "More sugar made the balloons grow faster, which proves our hypothesis.",
-   "sentenceId": "s12",
+   "near": "sugar made the balloons grow faster, which proves our hypothesis.",
+   "sentenceId": "s13",
    "plain": {
-    "meaning": "Teacher doubts the claim that the result proves the hypothesis.",
-    "todo": "Problem: unsupported conclusion; need evidence to support the claim."
+    "meaning": "Probably show evidence for this claim.",
+    "todo": "Add supporting evidence."
    }
   },
   {
    "n": 5,
-   "words": "so what?",
-   "kind": "underline",
-   "near": "We only did each bottle once.",
+   "words": "sp",
+   "kind": "circle",
+   "near": "temprature",
    "sentenceId": "s15",
    "plain": {
-    "meaning": "This point needs a reason it matters.",
-    "todo": "Missing explanation of relevance to argument."
+    "meaning": "This word is misspelled.",
+    "todo": "Fix the spelling of the marked word."
    }
   },
   {
    "n": 6,
-   "words": "sp temperature",
-   "kind": "circle",
-   "near": "because yeast breaks down sugar for energy and gives of",
-   "sentenceId": "s15",
+   "words": "so what?",
+   "kind": "underline",
+   "near": "We only did each bottle once.",
+   "sentenceId": "s16",
    "plain": {
-    "meaning": "You misspelled the word temperature.",
-    "todo": "Identify and correct the misspelled temperature word."
+    "meaning": "This point needs a reason it matters.",
+    "todo": "Add a sentence that ties it to your argument."
    }
   }
  ]

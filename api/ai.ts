@@ -79,6 +79,8 @@ export function toGroq(model: string, input: Record<string, unknown>, schemaInPr
   const body: Record<string, unknown> = { ...rest, model };
   if (model.startsWith("openai/gpt-oss")) body["reasoning_effort"] = "low";
   const schema = (format as { json_schema?: unknown } | undefined)?.json_schema;
+  // A plain-text copy of a page needs no thinking, and Qwen's thinking counts against max_tokens: a page came back cut off mid-sentence.
+  if (model.startsWith("qwen/") && schema === undefined) body["reasoning_effort"] = "none";
   if (schema === undefined) return body;
   if (!schemaInPrompt) {
     body["response_format"] = { type: "json_schema", json_schema: { name: "answer", schema } };
@@ -127,8 +129,13 @@ async function chat(host: Host, key: string, model: string, input: Record<string
         stalled,
       ]);
       if (res.ok) {
-        const out = (await Promise.race([res.json(), stalled])) as { choices?: { message?: { content?: unknown } }[] };
+        const out = (await Promise.race([res.json(), stalled])) as { choices?: { message?: { content?: unknown }; finish_reason?: unknown }[] };
         clearTimeout(timer);
+        // An answer cut off at max_tokens is never used (or kept): the next host is asked instead.
+        if (out.choices?.[0]?.finish_reason === "length") {
+          log("warn", "model ran out of tokens", { host: host.name, model });
+          return "busy";
+        }
         const content = out.choices?.[0]?.message?.content;
         if (typeof content === "string") return { response: host.schemaInPrompt && input["response_format"] !== undefined ? jsonIn(content) : content };
         log("warn", "model gave no text", { host: host.name, model });
@@ -167,8 +174,8 @@ async function hosted(env: Env, model: string, input: Record<string, unknown>, f
   });
   let allDay = true;
   for (const [k, { host, key, hostModel }] of options.entries()) {
-    // Only the last option is waited on when rate-limited; the others are skipped past at once.
-    const answer = await chat(host, key, hostModel, input, k === options.length - 1 ? TRIES : 1);
+    // Only the last option, and a host asked for first, are waited on when rate-limited; the others are skipped past at once.
+    const answer = await chat(host, key, hostModel, input, k === options.length - 1 || (first !== undefined && k === 0) ? TRIES : 1);
     if (typeof answer === "object") return answer;
     if (answer === "busy") allDay = false;
   }

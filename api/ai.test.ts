@@ -29,6 +29,8 @@ test("a Workers AI request becomes a Groq one, with the schema wrapped and the m
   const body = toGroq("m", { messages: [], max_tokens: 5, response_format: { type: "json_schema", json_schema: schema } });
   expect(body).toEqual({ model: "m", messages: [], max_tokens: 5, response_format: { type: "json_schema", json_schema: { name: "answer", schema } } });
   expect(toGroq("m", { messages: [] })).toEqual({ model: "m", messages: [] });
+  expect(toGroq("qwen/q", { messages: [] })["reasoning_effort"]).toBe("none");
+  expect(toGroq("qwen/q", { messages: [], response_format: { type: "json_schema", json_schema: schema } })["reasoning_effort"]).toBeUndefined();
 });
 
 test("for NVIDIA the schema goes into the last message, and a reply inside a code fence is cut down to its JSON", () => {

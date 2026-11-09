@@ -12,10 +12,11 @@ export class ApiError extends Error {
   }
 }
 
+// The Worker tries each free host in turn and waits out short rate limits, so a page can take a couple of minutes.
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(path, { ...init, headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(85_000) });
+    response = await fetch(path, { ...init, headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(180_000) });
   } catch (error) {
     if (error instanceof DOMException && error.name === "TimeoutError") throw new ApiError("failed", "The reading took too long. Try again in a minute.");
     throw new ApiError("offline", "Couldn't reach Margin Notes. Check your connection and try again.");
@@ -35,8 +36,8 @@ export function readPageText(image: string): Promise<{ isEssay: boolean; text: s
   return call("/api/scan", post({ image }));
 }
 
-export async function readContext(sheet: string, inMargin: boolean[]): Promise<SheetRead[]> {
-  const { marks } = await call<{ marks: SheetRead[] }>("/api/scan", post({ sheet, inMargin }));
+export async function readContext(sheet: string, choices: string[][]): Promise<SheetRead[]> {
+  const { marks } = await call<{ marks: SheetRead[] }>("/api/scan", post({ sheet, choices }));
   return marks;
 }
 
@@ -50,7 +51,7 @@ export async function readWholePage(image: string): Promise<PageScan["marks"]> {
   return marks;
 }
 
-export async function explain(marks: { n: number; words: string; sentence: string }[]): Promise<Map<number, Plain>> {
+export async function explain(marks: { n: number; words: string; sentence: string; marked?: string }[]): Promise<Map<number, Plain>> {
   const { plains } = await call<{ plains: (Plain & { n: number })[] }>("/api/explain", post({ marks }));
   return new Map(plains.map((p) => [p.n, { meaning: p.meaning, todo: p.todo }]));
 }

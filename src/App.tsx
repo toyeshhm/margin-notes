@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from "react";
 
 import { Hand } from "./components/Hand";
+import { useEssays } from "./lib/store";
 import { follow, usePath } from "./router";
 import { EssayView } from "./screens/EssayView";
 import { Home } from "./screens/Home";
@@ -22,6 +23,9 @@ export const FOOTER = "Your essays are saved in this browser. Photos aren’t ke
 
 function Bar({ path }: { path: string }): React.JSX.Element {
   const here = path.split("?")[0] ?? "/";
+  // An opened essay belongs under My essays, or under Try a sample when it is one.
+  const essays = useEssays();
+  const owner = here.startsWith("/e/") ? (essays.find((e) => `/e/${e.id}` === here)?.sampleId === undefined ? "/essays" : "/samples") : undefined;
   return (
     <header className="bar">
       <a className="wordmark" href="/" onClick={follow} aria-current={here === "/" ? "page" : undefined}>
@@ -29,7 +33,7 @@ function Bar({ path }: { path: string }): React.JSX.Element {
       </a>
       <nav aria-label="Menu">
         {MENU.map((m) => (
-          <a key={m.href} href={m.href} onClick={follow} aria-current={here.startsWith(m.href) || (m.href === "/essays" && here.startsWith("/e/")) ? "page" : undefined}>
+          <a key={m.href} href={m.href} onClick={follow} aria-current={here.startsWith(m.href) || m.href === owner ? "page" : undefined}>
             {m.label}
           </a>
         ))}

@@ -1,4 +1,4 @@
-// POST /api/explain { marks: [{ n, words, sentence }] } -> { plains: [{ n, meaning, todo }] }
+// POST /api/explain { marks: [{ n, words, sentence, marked? }] } -> { plains: [{ n, meaning, todo }] }
 // Plain words for each teacher comment. The first line is the marking key's meaning when the key
 // has the mark; Llama 3.3 writes what to do about this sentence. It never writes the sentence:
 // code drops any answer that runs past 25 words or copies five words in a row from the essay.
@@ -19,20 +19,23 @@ const SCHEMA = {
   required: ["meaning", "todo"],
 };
 
-async function explainOne(env: Env, words: string, sentence: string): Promise<Plain> {
+// `marked` is the words of the sentence the pen rings, underlines or is written on, when known.
+async function explainOne(env: Env, words: string, sentence: string, marked: string): Promise<Plain> {
   const key = keyFor(words);
   const ask = [
     `The teacher wrote: "${words}"`,
     key ? `In the marking key this mark means: "${key.meaning}" Usually it asks: "${key.todo}"` : "This mark is not in the marking key.",
     `It is on this sentence of the essay: "${sentence}"`,
+    ...(marked === "" ? [] : [`The pen marks these words of it: "${marked}"`]),
     "",
     key
       ? `meaning: copy exactly "${key.meaning}"`
-      : "meaning: what the comment means, in one short plain sentence of at most 12 words. If you aren't sure what a short mark means, start with \"Probably\".",
+      : "meaning: what the comment means, in one short plain sentence of at most 12 words. A question from the teacher asks for that point to be answered or backed up in this sentence. If you aren't sure what a short mark means, start with \"Probably\".",
     `todo: one instruction to the student of at most 20 words, starting with a verb such as Cut, Split, Add, Explain, Name or Fix, saying what to change in this sentence. Say what to do, not the new wording: no rewritten sentence, no corrected spelling, no quotes from the essay. End with a full stop.`,
   ].join("\n");
   const raw = (await askJSON(env, LLAMA, [{ role: "system", content: SYSTEM }, { role: "user", content: ask }], SCHEMA, 160)) as Record<string, unknown>;
-  const meaning = key ? key.meaning : str(raw["meaning"], 200).trim() || "Your teacher left a note on this sentence.";
+  const said = str(raw["meaning"], 200).trim();
+  const meaning = key ? key.meaning : said === "" ? "Your teacher left a note on this sentence." : /[.!?]$/.test(said) ? said : `${said}.`;
   const todo = str(raw["todo"], 400).trim();
   const fallback = key ? key.todo : "Reread the comment and change this sentence so it answers it.";
   return { meaning, todo: isInstruction(todo, sentence) ? todo : fallback };
@@ -52,7 +55,7 @@ export const POST = async (request: Request, env: Env): Promise<Response> => {
           const o = (typeof m === "object" && m !== null ? m : {}) as Record<string, unknown>;
           const words = str(o["words"], 300);
           try {
-            return [{ n: Number(o["n"]), ...(await explainOne(env, words, str(o["sentence"], 1500))) }];
+            return [{ n: Number(o["n"]), ...(await explainOne(env, words, str(o["sentence"], 1500), str(o["marked"], 300).trim())) }];
           } catch (error) {
             failed.push(error);
             const key = keyFor(words);

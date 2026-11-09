@@ -111,7 +111,7 @@
    "sentences": [
     {
      "id": "s17",
-     "text": "Being this tired makes it hard to focus in school harder.",
+     "text": "Being this tired makes stuff in school harder.",
      "page": 1
     },
     {
@@ -151,19 +151,14 @@
    "sentences": [
     {
      "id": "s24",
-     "text": "It is hard to receive new information when your brain still thinks it is the middle of the night.",
+     "text": "It is hard to recieve new information when your brain still thinks it is the middle of the night.",
      "page": 2
     },
     {
      "id": "s25",
      "text": "A later start would give students the extra hour that the research says we are missing.",
      "page": 2
-    }
-   ],
-   "heading": false
-  },
-  {
-   "sentences": [
+    },
     {
      "id": "s26",
      "text": "Some people say a later start would cause problems with sports and buses.",
@@ -233,44 +228,44 @@
    "n": 1,
    "words": "awk",
    "kind": "circle",
-   "near": "a problem that is a big one",
+   "near": "a problem that is a big one.",
    "sentenceId": "s8",
    "plain": {
     "meaning": "This sentence is hard to follow.",
-    "todo": "The sentence is overly wordy and confusing."
+    "todo": "Simplify the phrase to make it clearer."
    }
   },
   {
    "n": 2,
    "words": "evidence?",
    "kind": "underline",
-   "near": "starts releasing melatonin later at night, so a fifteen-year-old who goes to bed at 10:00 often lies",
-   "sentenceId": "s11",
+   "near": "teenagers' bodies run on a later clock.",
+   "sentenceId": "s10",
    "plain": {
     "meaning": "This claim needs support.",
-    "todo": "Missing evidence for claim about melatonin timing and its effect on sleep."
+    "todo": "Add a fact or example to support the claim."
    }
   },
   {
    "n": 3,
    "words": "frag",
    "kind": "underline",
-   "near": "work, most of us end up running on five or six hours a night. Docto",
-   "sentenceId": "s15",
+   "near": "means less sleep.",
+   "sentenceId": "s14",
    "plain": {
     "meaning": "This is not a complete sentence.",
-    "todo": "Fragment: missing verb or clause to complete the thought."
+    "todo": "Add a subject to the sentence."
    }
   },
   {
    "n": 4,
    "words": "RO",
    "kind": "underline",
-   "near": "body works at that age. Scientists call it a sleep phase delay, and it lasts until our early twentie",
+   "near": "If school starts at 7:25 and the bus comes at 6:40, the math does not work, most of us end up running on five or six hours a night.",
    "sentenceId": "s15",
    "plain": {
     "meaning": "Two sentences run together.",
-    "todo": "Problem: two independent clauses are fused without proper punctuation."
+    "todo": "Split them into separate sentences."
    }
   },
   {
@@ -281,73 +276,73 @@
    "sentenceId": "s16",
    "plain": {
     "meaning": "This point needs a reason it matters.",
-    "todo": "Missing explanation of relevance to argument."
+    "todo": "Add a sentence that explains why this recommendation is important."
    }
   },
   {
    "n": 6,
    "words": "wc",
    "kind": "circle",
-   "near": "hours.",
+   "near": "stuff",
    "sentenceId": "s17",
    "plain": {
     "meaning": "Word choice: this word is not quite right.",
-    "todo": "The word 'harder' is misused, creating redundancy in the sentence."
+    "todo": "Replace 'stuff' with a more exact or formal word."
    }
   },
   {
    "n": 7,
    "words": "sp",
    "kind": "circle",
-   "near": "It is hard to",
+   "near": "recieve",
    "sentenceId": "s24",
    "plain": {
     "meaning": "This word is misspelled.",
-    "todo": "Identify the misspelled word and correct its spelling."
+    "todo": "Fix the spelling of the word 'recieve'."
    }
   },
   {
    "n": 8,
    "words": "¶",
    "kind": "symbol",
-   "near": "practices would end after dark, and parents wo",
-   "sentenceId": "s27",
+   "near": "Some people say a later start would cause problems with sports and buses",
+   "sentenceId": "s26",
    "plain": {
     "meaning": "Start a new paragraph here.",
-    "todo": "Missing paragraph break before this sentence."
+    "todo": "Split this into a new paragraph."
    }
   },
   {
    "n": 9,
    "words": "trans",
    "kind": "underline",
-   "near": "minutes of sleep a night and their grades went up. R",
+   "near": "Seattle",
    "sentenceId": "s30",
    "plain": {
     "meaning": "This needs a transition.",
-    "todo": "Missing transition linking this fact to the preceding idea."
+    "todo": "Add words that link this idea to the one before."
    }
   },
   {
    "n": 10,
    "words": "cite",
    "kind": "underline",
-   "near": "minutes of sleep a night and their grades went up. R",
-   "sentenceId": "s30",
+   "near": "minutes of sleep a night and their grades went up.",
+   "sentenceId": "s31",
    "plain": {
     "meaning": "Say where this comes from.",
-    "todo": "Missing citation for the 2016 Seattle high school start‑time change."
+    "todo": "Name the source of the sleep and grade information."
    }
   },
   {
    "n": 11,
-   "words": "lit",
-   "kind": "underline",
-   "near": "one thing every student in",
+   "words": "^ let",
+   "kind": "caret",
+   "near": "and",
    "sentenceId": "s35",
    "plain": {
-    "meaning": "The teacher thinks the sentence uses informal slang.",
-    "todo": "Replace slang with formal academic language."
+    "meaning": "Something is missing here.",
+    "todo": "Add the word 'let'."
    }
   }
  ]

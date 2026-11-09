@@ -1,4 +1,4 @@
-// POST /api/scan, four shapes: { image } -> { isEssay, text }; { sheet, inMargin: boolean[] } -> { marks } (what each mark is about);
+// POST /api/scan, four shapes: { image } -> { isEssay, text }; { sheet, choices: string[][] } -> { marks } (what each mark is about);
 // { writing, count } -> { words } (the handwriting of each tight close-up);
 // { image, whole: true } -> { marks } (a page with no ink found in the browser).
 // A vision model reads one photo of a typed page. The browser finds each patch of the teacher's ink
@@ -18,19 +18,19 @@ const NOT_AN_ESSAY = "NOT A TYPED PAGE";
 const PAGE_ASK = `If this photo does not show a page of typed (printed) text, answer only: ${NOT_AN_ESSAY}
 Otherwise copy every printed word on the page, exactly as printed, in reading order, keeping any misspelling as it is. Never correct anything.
 Leave out all handwriting, and the running head (surname and page number) at the very top.
-Put each heading line (name, teacher, class, date, title) on its own line, then a blank line.
-Put each paragraph on a single line, with a blank line between paragraphs. Answer with the text only.`;
+Keep the page's own lines: end each line of your copy where that printed line ends on the page.
+Put a blank line after the heading lines (name, teacher, class, date, title) and between paragraphs. Answer with the text only.`;
 
 const MARKS_ASK = `This is a photo of a typed essay page that a teacher marked in pen. List every handwritten mark, top to bottom, each with
 words (the handwriting exactly as written), kind ("circle", "underline", "caret", "symbol" or "margin") and near (the printed words it is about, copied exactly, 3 to 10 words).`;
 
-const SHEET_ASK = (count: number): string => `This picture stacks ${String(count)} close-ups from a photo of a typed essay page that a teacher marked in pen.
+const SHEET_ASK = (choices: readonly (readonly string[])[]): string => `This picture stacks ${String(choices.length)} close-ups from a photo of a typed essay page that a teacher marked in pen.
 Each close-up sits under a dark bar labelled MARK 1, MARK 2 and so on, and has a blue box drawn around one of the teacher's marks. Other marks outside the box are not yours: ignore them.
 Answer as JSON with one entry per close-up, in order, each with n (the number on its bar) and:
 kind: "circle" if the pen ringed printed words, "underline" if it drew a line under printed words, "caret" for a ^ showing a missing word, "symbol" for a ¶ or a bracket, otherwise "margin".
-marked: the printed (typed, black) words the teacher's pen ringed or underlined next to this mark, copied exactly, or "" if none. Never the red handwriting itself.
-below: the printed words directly under the handwriting, copied exactly, 3 to 10 words, or "" if none.
-beside: the printed words on the same line as the handwriting, nearest to it, copied exactly, 3 to 10 words, or "" if none.`;
+marked: the printed (typed, black) words the pen in the blue box rings or underlines, copied exactly; if it rings or underlines none, the printed words right beside or under the handwriting. Never the red handwriting itself.
+choice: the number of the sentence below that the mark is about: the one whose words it rings or underlines, or that it points at, or that it sits beside. 0 if none fits.
+${choices.map((c, k) => `MARK ${String(k + 1)} is about one of these sentences:\n${c.length === 0 ? "(none listed: answer 0)" : c.map((t, i) => `${String(i + 1)}. ${t}`).join("\n")}`).join("\n")}`;
 
 const VOCABULARY = markingKey.map((k) => k.mark).join(", ");
 
@@ -40,7 +40,7 @@ Answer as JSON with one entry per close-up, in order, each with n (the number on
 Teachers' shorthand is usually one of: ${VOCABULARY}, or a word written over a ^ (answer "^ " and the word). Read each close-up on its own: do not copy the answer of another close-up.`;
 
 // Part of every cached read's key: change it whenever a prompt or the vision models change, so old reads aren't reused.
-const SCAN_VERSION = 3;
+const SCAN_VERSION = 7;
 
 const INK_KINDS = MARK_KINDS.filter((k) => k !== "comment");
 
@@ -70,10 +70,9 @@ const SHEET_SCHEMA = {
           n: { type: "number" },
           kind: { type: "string", enum: INK_KINDS },
           marked: { type: "string" },
-          below: { type: "string" },
-          beside: { type: "string" },
+          choice: { type: "number" },
         },
-        required: ["n", "kind", "marked", "below", "beside"],
+        required: ["n", "kind", "marked", "choice"],
       },
     },
   },
@@ -120,21 +119,17 @@ function ask(env: Env, url: string, text: string, schema: Record<string, unknown
   );
 }
 
-// The printed words each mark is about, for each close-up on a sheet. A ring or underline says which
-// words; otherwise a margin note goes with its line, and writing between lines with the words below it.
-// `hints` are every printed phrase the model gave, best first, for finding the sentence.
-async function readSheet(env: Env, sheet: string, inMargin: boolean[]): Promise<SheetRead[]> {
-  const o = record(await ask(env, sheet, SHEET_ASK(inMargin.length), SHEET_SCHEMA, 250 * inMargin.length + 100, "groq"));
+// What each mark on a sheet is about. The browser lists the sentences on the lines beside each mark
+// (`choices`); the model picks one, and gives the printed words the pen rings or underlines. `hints`
+// are the picked sentence and those words, best first, for pinning the mark.
+async function readSheet(env: Env, sheet: string, choices: readonly (readonly string[])[]): Promise<SheetRead[]> {
+  const o = record(await ask(env, sheet, SHEET_ASK(choices), SHEET_SCHEMA, 120 * choices.length + 100, "groq"));
   const items = Array.isArray(o["marks"]) ? (o["marks"] as unknown[]).map(record) : [];
-  return inMargin.map((margin, k) => {
+  return choices.map((list, k) => {
     const x = items.find((m) => Number(m["n"]) === k + 1) ?? items[k] ?? {};
     const marked = str(x["marked"], 300).trim();
-    const below = str(x["below"], 300).trim();
-    const beside = str(x["beside"], 300).trim();
-    const long = (t: string): boolean => t.split(/\s+/).filter((w) => w !== "").length >= 3;
-    const order = margin ? [beside, below] : [below, beside];
-    const near = (long(marked) ? marked : order.find((t) => t !== "")) ?? marked;
-    return { kind: kindOf(x["kind"]), near, hints: [marked, ...order].filter((t) => t !== "") };
+    const chosen = list[Math.round(Number(x["choice"])) - 1] ?? "";
+    return { kind: kindOf(x["kind"]), near: marked !== "" ? marked : chosen, hints: [chosen, marked].filter((t) => t !== "") };
   });
 }
 
@@ -175,10 +170,10 @@ export const POST = async (request: Request, env: Env): Promise<Response> => {
   try {
     const body = record(await readJSON(request, 12_000_000));
     if (body["sheet"] !== undefined) {
-      const inMargin = (Array.isArray(body["inMargin"]) ? (body["inMargin"] as unknown[]) : []).slice(0, 8).map((m) => m === true);
-      if (inMargin.length === 0) throw new BadRequest("No marks to read.");
+      const choices = (Array.isArray(body["choices"]) ? (body["choices"] as unknown[]) : []).slice(0, 8).map((c) => (Array.isArray(c) ? (c as unknown[]) : []).slice(0, 6).map((t) => str(t, 600)));
+      if (choices.length === 0) throw new BadRequest("No marks to read.");
       const sheet = image(body["sheet"]);
-      return await cached(env, "scan_cache", { v: SCAN_VERSION, body }, async () => ({ marks: await readSheet(env, sheet, inMargin) }));
+      return await cached(env, "scan_cache", { v: SCAN_VERSION, body }, async () => ({ marks: await readSheet(env, sheet, choices) }));
     }
     if (body["writing"] !== undefined) {
       const count = Math.min(12, Math.max(1, Math.round(Number(body["count"]) || 1)));

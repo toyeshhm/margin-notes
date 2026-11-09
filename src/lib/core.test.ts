@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 
 import { align, answerRegion } from "./align";
-import { pinMarks, placeMarks } from "./build";
+import { inkSentence, lineSpans, nearby, pinMarks, placeMarks, typedLines } from "./build";
 import { isInstruction, quoteCheck } from "./guards";
 import { keyFor, snapMark } from "./markingKey";
 import { findSentence, splitSentences, toParagraphs } from "./text";
@@ -91,10 +91,10 @@ test("handwriting read a letter off snaps to the marking key", () => {
 
 test("marks run down the page with the sentences: a weakly read mark stays in step with the one above", () => {
   const sentences = [
-    { text: "One sentence about alarms and mornings.", at: 0.1 },
-    { text: "Two sentence about the bus and the bell.", at: 0.35 },
-    { text: "Three sentence about sleep and melatonin.", at: 0.6 },
-    { text: "Four sentence about grades and sports.", at: 0.85 },
+    { text: "One sentence about alarms and mornings.", from: 0, to: 0.25 },
+    { text: "Two sentence about the bus and the bell.", from: 0.25, to: 0.5 },
+    { text: "Three sentence about sleep and melatonin.", from: 0.5, to: 0.75 },
+    { text: "Four sentence about grades and sports.", from: 0.75, to: 1 },
   ];
   // The second mark was read beside the wrong words (part of the last sentence's), the others are clear.
   expect(placeMarks(sentences, [["alarms and mornings"], ["grades and zebras"], ["sleep and melatonin"], ["grades and sports"]])).toEqual([0, 0, 2, 3]);
@@ -115,4 +115,33 @@ test("a comment is answered in its sentence's new version or in sentences added 
   expect(answerRegion(matched, 0, 6)).toEqual([0, 1]);
   expect(answerRegion(matched, 3, 6)).toEqual([4, 5]);
   expect(answerRegion(matched, 2, 6)).toEqual([]);
+});
+
+test("a page's typed lines come from its text: the running head left out, a paragraph on one line wrapped, and each sentence knows its lines", () => {
+  expect(typedLines("Okafor 2\n\nMaya Okafor\nEnglish 10\n\nOne two.")).toEqual(["Maya Okafor", "English 10", "One two."]);
+  expect(typedLines(`${"word ".repeat(40)}end.`).length).toBe(3);
+  expect(lineSpans(["One. Two starts", "here. Three."], [{ text: "One." }, { text: "Two starts here." }, { text: "Three." }])).toEqual([
+    { first: 0, last: 0 },
+    { first: 0, last: 1 },
+    { first: 1, last: 1 },
+  ]);
+  const text = "Title\n\nFirst sentence here. Second one\nruns on. Third.\nFourth is long and\nends here.\n\nFifth.";
+  const paras = toParagraphs(text, 1);
+  // Six lines; a mark level with the last line is about the sentences within a line or so of it.
+  expect(nearby(paras, text, 1)).toEqual(["Fourth is long and ends here.", "Fifth."]);
+  expect(nearby(paras, text, 0.3)).toEqual(["First sentence here.", "Second one runs on.", "Third."]);
+  expect(nearby(paras, text, undefined)).toEqual([]);
+});
+
+test("a mark's ink says its sentence: the words under an underline, under handwriting among the lines, or most of a margin note's line", () => {
+  const text = "Alpha beta gamma. Delta epsilon\nzeta eta. Theta iota kappa.";
+  const sentences = [{ text: "Alpha beta gamma." }, { text: "Delta epsilon zeta eta." }, { text: "Theta iota kappa." }];
+  const box = { x0: 0, x1: 1000, y0: 0, y1: 150 };
+  const mark = (core: { x0: number; x1: number; y0: number; y1: number }, strokes: { x0: number; x1: number; y0: number; y1: number }[] = []) => ({ box: core, core, strokes });
+  expect(inkSentence(text, sentences, box, mark({ x0: 1020, x1: 1100, y0: 0, y1: 30 }, [{ x0: 600, x1: 1000, y0: 30, y1: 36 }]))).toEqual({ sentence: 1, words: "Delta epsilon", pen: true });
+  expect(inkSentence(text, sentences, box, mark({ x0: 1100, x1: 1200, y0: 100, y1: 130 }))).toEqual({ sentence: 2 });
+  expect(inkSentence(text, sentences, box, mark({ x0: 30, x1: 70, y0: 0, y1: 15 }))).toEqual({ sentence: 0, words: "Alpha" });
+  // A tall stroke (a bracket) is not an underline.
+  expect(inkSentence(text, sentences, box, mark({ x0: -80, x1: -40, y0: 100, y1: 130 }, [{ x0: -30, x1: -20, y0: 90, y1: 140 }]))).toEqual({ sentence: 2 });
+  expect(inkSentence("", sentences, box, mark(box))).toBeUndefined();
 });

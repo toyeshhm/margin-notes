@@ -13,13 +13,9 @@ export interface Box {
 // underline), `core` is only the written part.
 export interface InkMark {
   box: Box;
+  // The handwriting alone, and each ring or underline drawn with it.
   core: Box;
-}
-
-export interface MarkCrop {
-  canvas: HTMLCanvasElement;
-  // The mark sits outside the typed text block, in a margin.
-  inMargin: boolean;
+  strokes: Box[];
 }
 
 export async function loadPhoto(file: Blob): Promise<ImageBitmap> {
@@ -49,11 +45,13 @@ export function pageJPEG(photo: ImageBitmap, max = 1600, withoutInk = false): st
   const [c, ctx] = canvas(photo.width * s, photo.height * s);
   ctx.drawImage(photo, 0, 0, c.width, c.height);
   if (withoutInk) {
+    // Grey from each pixel's brightest channel: coloured ink turns pale and black type stays dark, even
+    // where the pen crosses it. Bright coloured ink goes white.
     const image = ctx.getImageData(0, 0, c.width, c.height);
     const d = image.data;
     for (let i = 0; i < d.length; i += 4) {
       const [sat, v] = saturation(d[i] ?? 0, d[i + 1] ?? 0, d[i + 2] ?? 0);
-      if (sat > 0.28 && v > 0.3) d[i] = d[i + 1] = d[i + 2] = Math.max(235, Math.round(v * 255));
+      d[i] = d[i + 1] = d[i + 2] = sat > 0.28 && v > 0.55 ? 255 : Math.round(v * 255);
     }
     ctx.putImageData(image, 0, 0);
   }
@@ -66,24 +64,29 @@ interface Cells {
   x1: number;
   y1: number;
   n: number;
+  // The pen's colour, as the strongest channel of most of its cells: 0 red, 1 green, 2 blue.
+  tint: number;
 }
 
 const overlaps = (a: Cells, b: Cells): boolean => a.x0 <= b.x1 && b.x0 <= a.x1 && a.y0 <= b.y1 && b.y0 <= a.y1;
 
 // Connected patches of a mask, joining cells up to rx across and ry down apart.
-function components(mask: Uint8Array, w: number, h: number, rx: number, ry: number): Cells[] {
+function components(mask: Uint8Array, tint: Uint8Array, w: number, h: number, rx: number, ry: number): Cells[] {
   const seen = new Uint8Array(w * h);
   const out: Cells[] = [];
   for (let start = 0; start < w * h; start++) {
     if (mask[start] !== 1 || seen[start] === 1) continue;
     seen[start] = 1;
     const stack = [start];
-    const c = { x0: w, y0: h, x1: 0, y1: 0, n: 0 };
+    const c = { x0: w, y0: h, x1: 0, y1: 0, n: 0, tint: 0 };
+    const tints = [0, 0, 0];
     while (stack.length > 0) {
       const i = stack.pop() ?? 0;
       const x = i % w;
       const y = Math.floor(i / w);
       c.n++;
+      const t = tint[i] ?? 0;
+      tints[t] = (tints[t] ?? 0) + 1;
       c.x0 = Math.min(c.x0, x);
       c.x1 = Math.max(c.x1, x);
       c.y0 = Math.min(c.y0, y);
@@ -101,6 +104,7 @@ function components(mask: Uint8Array, w: number, h: number, rx: number, ry: numb
         }
       }
     }
+    c.tint = tints.indexOf(Math.max(...tints));
     out.push(c);
   }
   return out;
@@ -118,10 +122,12 @@ export function findInk(photo: ImageBitmap): { marks: InkMark[]; text: Box | und
   const ink = new Uint8Array(w * h);
   const stroke = new Uint8Array(w * h);
   const paper = new Uint8Array(w * h);
+  const tint = new Uint8Array(w * h);
   for (let i = 0; i < w * h; i++) {
     const r = data[i * 4] ?? 0;
     const g = data[i * 4 + 1] ?? 0;
     const b = data[i * 4 + 2] ?? 0;
+    tint[i] = r >= g && r >= b ? 0 : g >= b ? 1 : 2;
     const [s, v] = saturation(r, g, b);
     if (s > 0.45 && v > 0.25) ink[i] = 1;
     if (s > 0.28 && v > 0.3) stroke[i] = 1;
@@ -130,6 +136,8 @@ export function findInk(photo: ImageBitmap): { marks: InkMark[]; text: Box | und
   // Typed text is dark pixels with paper close by on both sides; the block is where most of them lie.
   const dark = new Uint32Array(w);
   const darkRows = new Uint32Array(h);
+  // Where each row's typed text starts: a running head (surname and page number) is set to the right.
+  const rowStart = new Uint32Array(h).fill(w);
   for (let y = 0; y < h; y++) {
     for (let x = 3; x < w - 3; x++) {
       const i = y * w + x;
@@ -140,38 +148,46 @@ export function findInk(photo: ImageBitmap): { marks: InkMark[]; text: Box | und
       if (v < 0.5 && s < 0.3 && paper[i - 3] === 1 && paper[i + 3] === 1) {
         dark[x] = (dark[x] ?? 0) + 1;
         darkRows[y] = (darkRows[y] ?? 0) + 1;
+        rowStart[y] = Math.min(rowStart[y] ?? w, x);
       }
     }
   }
   const colLimit = Math.max(...dark) * 0.15;
   const rowLimit = Math.max(...darkRows) * 0.15;
   const cols = [...dark.keys()].filter((x) => (dark[x] ?? 0) > colLimit);
-  const rows = [...darkRows.keys()].filter((y) => (darkRows[y] ?? 0) > rowLimit);
+  const left = cols[0] ?? 0;
+  const reach = ((cols[cols.length - 1] ?? 0) - left) * 0.3;
+  // The block runs from the first line that starts at the left edge (so not a running head) to the
+  // last line of type, however short.
+  const rows = [...darkRows.keys()].filter((y) => (darkRows[y] ?? 0) > rowLimit / 3 && (rowStart[y] ?? w) < left + reach);
   const text =
     cols.length > 0 && rows.length > 0
-      ? { x0: (cols[0] ?? 0) * k, x1: ((cols[cols.length - 1] ?? 0) + 1) * k, y0: (rows[0] ?? 0) * k, y1: ((rows[rows.length - 1] ?? 0) + 1) * k }
+      ? { x0: left * k, x1: ((cols[cols.length - 1] ?? 0) + 1) * k, y0: (rows[0] ?? 0) * k, y1: ((rows[rows.length - 1] ?? 0) + 1) * k }
       : undefined;
   // Written marks are dense ink; pale strokes on their own (an underline, a ring) belong to the
-  // written mark on the same line, so the close-up shows which words it is about.
-  const written = components(ink, w, h, 5, 2).filter((c) => c.n >= 12 && c.y1 - c.y0 >= 2);
-  const strokes = components(stroke, w, h, 2, 1).filter((c) => c.n >= 6 && !written.some((m) => overlaps(m, c)));
+  // written mark in the same pen on the same line, so the close-up shows which words it is about.
+  const written = components(ink, tint, w, h, 5, 2).filter((c) => c.n >= 12 && c.y1 - c.y0 >= 2);
+  const strokes = components(stroke, tint, w, h, 2, 1).filter((c) => c.n >= 6 && !written.some((m) => overlaps(m, c)));
   const cores = written.map((c) => ({ x0: c.x0, y0: c.y0, x1: c.x1, y1: c.y1 }));
+  const drawn = written.map((): Cells[] => []);
   const line = h * 0.025;
   for (const st of strokes) {
-    const sameLine = written.filter((m) => st.y0 < m.y1 + line && st.y1 > m.y0 - line);
+    const sameLine = written.filter((m) => m.tint === st.tint && st.y0 < m.y1 + line && st.y1 > m.y0 - line);
     const gap = (m: Cells): number => Math.max(0, m.x0 - st.x1, st.x0 - m.x1);
     const near = sameLine.sort((p, q) => gap(p) - gap(q))[0];
-    if (near !== undefined) Object.assign(near, { x0: Math.min(near.x0, st.x0), y0: Math.min(near.y0, st.y0), x1: Math.max(near.x1, st.x1), y1: Math.max(near.y1, st.y1) });
+    if (near === undefined) continue;
+    drawn[written.indexOf(near)]?.push(st);
+    Object.assign(near, { x0: Math.min(near.x0, st.x0), y0: Math.min(near.y0, st.y0), x1: Math.max(near.x1, st.x1), y1: Math.max(near.y1, st.y1) });
   }
   const scaled = (c: { x0: number; y0: number; x1: number; y1: number }): Box => ({ x0: c.x0 * k, y0: c.y0 * k, x1: (c.x1 + 1) * k, y1: (c.y1 + 1) * k });
-  const marks: InkMark[] = written.map((c, i) => ({ box: scaled(c), core: scaled(cores[i] ?? c) }));
+  const marks: InkMark[] = written.map((c, i) => ({ box: scaled(c), core: scaled(cores[i] ?? c), strokes: (drawn[i] ?? []).map(scaled) }));
   marks.sort((a, b) => a.box.y0 - b.box.y0 || a.box.x0 - b.box.x0);
   return { marks: marks.slice(0, 30), text };
 }
 
 // A close-up of one mark with a blue box round it: the lines just above and below, and across
 // the page when the mark is in a margin (its underline may be at the other end of the line).
-export function cropMark(photo: ImageBitmap, box: Box, text: Box | undefined, width = 1400): MarkCrop {
+export function cropMark(photo: ImageBitmap, box: Box, text: Box | undefined, width = 1400): HTMLCanvasElement {
   const W = photo.width;
   const H = photo.height;
   const inMargin = text !== undefined && (box.x1 < text.x0 + W * 0.01 || box.x0 > text.x1 - W * 0.01);
@@ -187,15 +203,15 @@ export function cropMark(photo: ImageBitmap, box: Box, text: Box | undefined, wi
   ctx.lineWidth = 3;
   const pad = 8 * s;
   ctx.strokeRect((box.x0 - left) * s - pad, (box.y0 - top) * s - pad, (box.x1 - box.x0) * s + pad * 2, (box.y1 - box.y0) * s + pad * 2);
-  return { canvas: c, inMargin };
+  return c;
 }
 
 // Close-ups stacked into one picture, each under a dark bar numbered "MARK n", so one request reads
 // several marks (a vision request is charged per picture, not per mark).
-export function sheetOf(crops: readonly MarkCrop[], first: number): string {
+export function sheetOf(crops: readonly HTMLCanvasElement[], first: number): string {
   const bar = 44;
-  const width = Math.max(...crops.map((c) => c.canvas.width));
-  const [c, ctx] = canvas(width, crops.reduce((h, k) => h + k.canvas.height + bar, 0));
+  const width = Math.max(...crops.map((c) => c.width));
+  const [c, ctx] = canvas(width, crops.reduce((h, k) => h + k.height + bar, 0));
   ctx.fillStyle = "rgb(20, 20, 20)";
   ctx.fillRect(0, 0, c.width, c.height);
   ctx.fillStyle = "white";
@@ -203,8 +219,8 @@ export function sheetOf(crops: readonly MarkCrop[], first: number): string {
   let y = 0;
   for (const [i, k] of crops.entries()) {
     ctx.fillText(`MARK ${String(first + i)}`, 12, y + 34);
-    ctx.drawImage(k.canvas, 0, y + bar);
-    y += bar + k.canvas.height;
+    ctx.drawImage(k, 0, y + bar);
+    y += bar + k.height;
   }
   return c.toDataURL("image/jpeg", 0.88);
 }
