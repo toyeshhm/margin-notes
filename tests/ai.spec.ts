@@ -9,6 +9,9 @@ import { laterBells } from "../src/samples/laterBells";
 import { sentenceText } from "../src/samples/types";
 
 test.describe.configure({ mode: "serial" });
+// Comments answered by the sample's two revisions in their saved checks (public/samples/later-bells-check-<k>.json).
+const ROUND_1 = 10;
+const ROUND_2 = 11;
 test.setTimeout(240_000);
 
 // The sentence each comment of the first sample sits on, from the sample's own source.
@@ -32,15 +35,14 @@ test("the first sample's two photos give eleven comments, each pinned to its sen
   await page.waitForURL(/\/e\//, { timeout: 200_000 });
   await expect(page.locator(".card .count")).toHaveText("11 comments", { timeout: 30_000 });
   await expect(page.locator(".pin")).toHaveCount(11);
-  // Reading handwriting from a phone photo is not exact: most pins land on the right sentence, a few one sentence off
-  // (each can be dragged, feature 4).
+  // Each pin goes where the ink lies over the page's typed lines (and can still be dragged, feature 4).
   let right = 0;
   for (let n = 1; n <= 11; n++) {
     await page.locator(".row-main").nth(n - 1).click();
     const sentence = await page.locator(".row.open .on q").last().textContent();
     if ((sentence ?? "").slice(0, 14) === (answers.get(n) ?? "x").slice(0, 14)) right++;
   }
-  expect(right).toBeGreaterThanOrEqual(7);
+  expect(right).toBe(11);
   await expect(page.locator(".row").first()).toContainText("This sentence is hard to follow.");
 });
 
@@ -59,33 +61,36 @@ test("plain words for 'rewrite this' are an instruction, not a rewritten sentenc
   expect(isInstruction(plains[0]?.todo ?? "", sentence)).toBe(true);
 });
 
-test("checking the sample's revisions: quoted ticks, a reasoned miss, then most answered in round 2", async ({ page }) => {
+test("the sample's own revisions check from saved runs, and an edited revision checks live", async ({ page }) => {
   await openSample(page, "Later Bells");
   await page.getByRole("link", { name: "Check my revision" }).click();
   await page.getByRole("button", { name: "Paste the sample’s revision" }).click();
   await page.getByRole("button", { name: "Check it" }).click();
-  await expect(page.locator(".card .count")).toHaveText("Round 1", { timeout: 120_000 });
+  // The sample's own revision is answered from its saved real run (public/samples), with no model call.
+  await expect(page.locator(".card .count")).toHaveText("Round 1", { timeout: 15_000 });
   const draft = normalize(laterBells.revisions[0] ?? "");
   for (const q of await page.locator(".row.ticked .quote").allTextContents()) {
     if (q !== "Removed in your revision") expect(draft).toContain(normalize(q.replace(/^“|”$/g, "")));
   }
-  // The sample's first revision leaves some comments unanswered; the models vary on which, so any miss will do.
-  await expect(page.locator(".row.missed").first()).toBeVisible();
+  await expect(page.locator(".answered")).toHaveText(`${String(ROUND_1)} of 11 answered`);
   await expect(page.locator(".row.missed").first().locator(".reason")).not.toBeEmpty();
   await page.locator(".row.ticked .row-main").first().click();
   await page.getByRole("button", { name: "Before and after" }).click();
   await expect(page.getByRole("dialog")).toContainText("Before");
   await page.getByRole("button", { name: "Close" }).click();
-  // The free hosts allow about a check a minute; a student takes longer than that to revise.
-  await page.waitForTimeout(65_000);
   await page.getByRole("button", { name: "Paste the sample’s revision" }).click();
   await page.getByRole("button", { name: "Check again" }).click();
-  await expect(page.locator(".card .count")).toHaveText("Round 2", { timeout: 120_000 });
-  // The reading models are stricter than the sample's author (they want evidence cited, for one): a good share, not all, are ticked, and the count moves with the model that answered.
-  const done = Number(/^(\d+) of 11 answered$/.exec((await page.locator(".answered").textContent()) ?? "")?.[1]);
-  expect(done).toBeGreaterThanOrEqual(4);
+  await expect(page.locator(".card .count")).toHaveText("Round 2", { timeout: 15_000 });
+  await expect(page.locator(".answered")).toHaveText(`${String(ROUND_2)} of 11 answered`);
   await page.getByRole("button", { name: "Round 1" }).click();
   await expect(page.locator(".card .count")).toHaveText("Round 1");
+  // An edited revision goes to the live models (kept by a hash after the first run, so a repeat is free).
+  await page.getByRole("button", { name: "Paste the sample’s revision" }).click();
+  const box = page.locator("#draft");
+  await box.fill(`${await box.inputValue()}\n\nA later bell would let every student in this building start the day awake.`);
+  await page.getByRole("button", { name: "Check again" }).click();
+  await expect(page.locator(".card .count")).toHaveText("Round 3", { timeout: 150_000 });
+  await expect(page.locator(".answered")).toHaveText(/^\d+ of 11 answered$/);
   // The note for the teacher, from the latest round: Copy link gives a read-only page.
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   // Notes made by tests are flagged, so they can be told apart from students' notes.
@@ -96,9 +101,10 @@ test("checking the sample's revisions: quoted ticks, a reasoned miss, then most 
   const url = await page.evaluate(() => navigator.clipboard.readText());
   await page.goto(url);
   await expect(page.locator(".note-sheet li")).toHaveCount(11);
-  // My essays lists the essay with both rounds, and a round opens its results.
+  await expect(page.locator(".note-before").first()).not.toBeEmpty();
+  // My essays lists the essay with all three rounds, and a round opens its results.
   await page.goto("/essays");
-  await expect(page.locator(".folder-rounds li")).toHaveCount(2);
+  await expect(page.locator(".folder-rounds li")).toHaveCount(3);
   await page.locator(".folder-rounds a").first().click();
   await expect(page).toHaveURL(/tab=check&round=1/);
 });

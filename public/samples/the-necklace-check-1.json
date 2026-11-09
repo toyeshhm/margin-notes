@@ -1,0 +1,217 @@
+{
+ "request": {
+  "sentences": [
+   {
+    "id": "s0",
+    "text": "Jonah Reyes"
+   },
+   {
+    "id": "s1",
+    "text": "Mr. Hale"
+   },
+   {
+    "id": "s2",
+    "text": "English 10"
+   },
+   {
+    "id": "s3",
+    "text": "3 November 2026"
+   },
+   {
+    "id": "s4",
+    "text": "What the Necklace Cost"
+   },
+   {
+    "id": "s5",
+    "text": "Mathilde Loisel spends ten years paying for a necklace that was never worth what she thought."
+   },
+   {
+    "id": "s6",
+    "text": "In “The Necklace,” Guy de Maupassant tells the story of a woman who wanted more."
+   },
+   {
+    "id": "s7",
+    "text": "Maupassant shows that pride costs more than poverty, and that Mathilde loses her youth because she would rather work for a decade than admit a mistake."
+   },
+   {
+    "id": "s8",
+    "text": "From the first page, Mathilde believes she was born for a richer life."
+   },
+   {
+    "id": "s9",
+    "text": "Maupassant describes her as one of those girls born “as if by a slip of fate” into a family of clerks."
+   },
+   {
+    "id": "s10",
+    "text": "She has a husband who loves her and a home that is comfortable, but she only sees what is missing."
+   },
+   {
+    "id": "s11",
+    "text": "When the invitation to the ball arrives, she cries because she has nothing to wear."
+   },
+   {
+    "id": "s12",
+    "text": "She borrows a diamond necklace from her friend Madame Forestier and goes to the ball."
+   },
+   {
+    "id": "s13",
+    "text": "Everyone admires her and she dances until four in the morning."
+   },
+   {
+    "id": "s14",
+    "text": "On the way home she discovers that the necklace is gone."
+   },
+   {
+    "id": "s15",
+    "text": "The real turning point is what Mathilde chooses next, she could tell her friend the truth but she decides to buy a replacement and say nothing."
+   },
+   {
+    "id": "s16",
+    "text": "The Loisels borrow thirty-six thousand francs, give up their maid and move to an attic."
+   },
+   {
+    "id": "s17",
+    "text": "Mathilde does the washing and carries water up the stairs for ten years."
+   },
+   {
+    "id": "s18",
+    "text": "By the end she looks old and very sad."
+   },
+   {
+    "id": "s19",
+    "text": "In the last lines, Madame Forestier tells her the diamonds were paste, worth five hundred francs at most."
+   },
+   {
+    "id": "s20",
+    "text": "Mathilde gave up ten years for a fake."
+   },
+   {
+    "id": "s21",
+    "text": "The story shows that pride costs more than poverty."
+   }
+  ],
+  "draft": "Jonah Reyes\nMr. Hale\nEnglish 10\n3 November 2026\n\nWhat the Necklace Cost\n\nMathilde Loisel spends ten years paying for a necklace that was never worth what she thought. In “The Necklace,” Guy de Maupassant tells the story of a clerk’s wife who wants the jewels, gowns and admirers of the rich. Maupassant shows that Mathilde loses her youth because her pride will not let her admit a mistake.\n\nFrom the first page, Mathilde believes she was born for a richer life. Maupassant describes her as one of those girls born “as if by a slip of fate” into a family of clerks (Maupassant 1). She has a husband who loves her and a home that is comfortable, but she only sees what is missing. When the invitation to the ball arrives, she cries because she has nothing to wear.\n\nThe night of the ball matters because it is the only time Mathilde is treated the way she believes she deserves. That is why losing the necklace feels to her like losing that whole self, not just a piece of jewelry.\n\nThe real turning point is what Mathilde chooses next. She could tell her friend the truth, but she decides to buy a replacement and say nothing. The Loisels borrow thirty-six thousand francs, give up their maid and move to an attic. Mathilde does the washing and carries water up the stairs for ten years. By the end her hands are red and rough, and she looks like any worn-out woman in the neighborhood.\n\nIn the last lines, Madame Forestier tells her the diamonds were paste, worth five hundred francs at most. Mathilde gave up ten years for a fake. The ending makes readers ask what they would hide to protect their own image, and what that silence would cost them.",
+  "comments": [
+   {
+    "n": 1,
+    "words": "Too general. What exactly does she want?",
+    "meaning": "This point is too general. Say exactly what she wants, in concrete terms.",
+    "sentenceId": "s6"
+   },
+   {
+    "n": 2,
+    "words": "Two claims in one thesis. Which one is your argument?",
+    "meaning": "The thesis makes two claims. Choose the one claim you will argue and build the thesis on it.",
+    "sentenceId": "s7"
+   },
+   {
+    "n": 3,
+    "words": "Cite the page for this quote.",
+    "meaning": "This quote needs a page number. Add the page where the quote appears.",
+    "sentenceId": "s9"
+   },
+   {
+    "n": 4,
+    "words": "This paragraph is plot summary. Analyze: why does the ball matter?",
+    "meaning": "This paragraph retells the plot instead of analyzing it. Explain why the ball matters to the story's meaning, not just what happens.",
+    "sentenceId": "s12"
+   },
+   {
+    "n": 5,
+    "words": "Run-on sentence.",
+    "meaning": "Two sentences run together. Split them with a period, or join them with and, but or because.",
+    "sentenceId": "s15"
+   },
+   {
+    "n": 6,
+    "words": "wc: show it instead of saying it.",
+    "meaning": "Show it instead of telling it. Use a detail or an action that lets the reader see it.",
+    "sentenceId": "s18"
+   },
+   {
+    "n": 7,
+    "words": "This repeats your thesis word for word. So what?",
+    "meaning": "This repeats your thesis. Add a new point that moves the argument forward.",
+    "sentenceId": "s21"
+   }
+  ]
+ },
+ "verdicts": [
+  {
+   "n": 1,
+   "after": [
+    "In “The Necklace,” Guy de Maupassant tells the story of a clerk’s wife who wants the jewels, gowns and admirers of the rich."
+   ],
+   "quoteNotFound": false,
+   "ticked": true,
+   "removed": false,
+   "quote": "In “The Necklace,” Guy de Maupassant tells the story of a clerk’s wife who wants the jewels, gowns and admirers of the rich.",
+   "reason": ""
+  },
+  {
+   "n": 2,
+   "after": [
+    "Maupassant shows that Mathilde loses her youth because her pride will not let her admit a mistake."
+   ],
+   "quoteNotFound": false,
+   "ticked": false,
+   "removed": false,
+   "quote": "",
+   "reason": "Your revision still includes both the idea that pride costs something and that Mathilde loses her youth, so it does not isolate a single claim as the teacher requested."
+  },
+  {
+   "n": 3,
+   "after": [
+    "Maupassant describes her as one of those girls born “as if by a slip of fate” into a family of clerks (Maupassant 1)."
+   ],
+   "quoteNotFound": false,
+   "ticked": true,
+   "removed": false,
+   "quote": "(Maupassant 1)",
+   "reason": ""
+  },
+  {
+   "n": 4,
+   "after": [
+    "The night of the ball matters because it is the only time Mathilde is treated the way she believes she deserves."
+   ],
+   "quoteNotFound": false,
+   "ticked": true,
+   "removed": false,
+   "quote": "The night of the ball matters because it is the only time Mathilde is treated the way she believes she deserves.",
+   "reason": ""
+  },
+  {
+   "n": 5,
+   "after": [
+    "The real turning point is what Mathilde chooses next.",
+    "She could tell her friend the truth, but she decides to buy a replacement and say nothing."
+   ],
+   "quoteNotFound": false,
+   "ticked": true,
+   "removed": false,
+   "quote": "The real turning point is what Mathilde chooses next. She could tell her friend the truth, but she decides to buy a replacement and say nothing.",
+   "reason": ""
+  },
+  {
+   "n": 6,
+   "after": [
+    "By the end her hands are red and rough, and she looks like any worn-out woman in the neighborhood."
+   ],
+   "quoteNotFound": false,
+   "ticked": true,
+   "removed": false,
+   "quote": "her hands are red and rough, and she looks like any worn-out woman in the neighborhood",
+   "reason": ""
+  },
+  {
+   "n": 7,
+   "after": [],
+   "quoteNotFound": false,
+   "ticked": true,
+   "removed": true,
+   "quote": "",
+   "reason": ""
+  }
+ ]
+}
