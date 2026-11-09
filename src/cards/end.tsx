@@ -55,5 +55,5 @@ requestAnimationFrame(() => {
     .from(".end-url", { y: 16, opacity: 0, duration: 0.7, ease: "expo.out" }, 3.0)
     .from(".credits li", { y: 10, opacity: 0, duration: 0.5, stagger: 0.12, ease: "expo.out" }, 3.6);
   gsap.to(".end-page", { rotate: -1.2, y: "-=8", duration: 6, ease: "sine.inOut", yoyo: true, repeat: -1, delay: 1.0 });
-  gsap.to(".dust", { scale: 1.05, x: "1.5%", duration: 12, ease: "sine.inOut", yoyo: true, repeat: -1 });
+  gsap.to(".dust", { x: "1.5%", duration: 12, ease: "sine.inOut", yoyo: true, repeat: -1 });
 });

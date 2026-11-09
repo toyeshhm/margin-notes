@@ -41,6 +41,6 @@ requestAnimationFrame(() => {
     .to(".caret", { opacity: 0, repeat: 5, yoyo: true, duration: 0.25 }, 1.6)
     .from(".tagline", { y: 14, opacity: 0, duration: 0.6, ease: "expo.out" }, 2.6)
     .from(".url", { y: 10, opacity: 0, duration: 0.6, ease: "expo.out" }, 3.0);
-  gsap.to(".dust", { scale: 1.06, x: "-1.5%", duration: 12, ease: "sine.inOut", yoyo: true, repeat: -1 });
+  gsap.to(".dust", { x: "-1.5%", duration: 12, ease: "sine.inOut", yoyo: true, repeat: -1 });
   gsap.to(".title-card", { rotate: -0.4, y: "+=6", duration: 5, ease: "sine.inOut", yoyo: true, repeat: -1, delay: 3.4 });
 });
