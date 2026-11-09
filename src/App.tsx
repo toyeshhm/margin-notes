@@ -19,7 +19,7 @@ export const MENU = [
   { href: "/key", label: "Marking key" },
 ] as const;
 
-export const FOOTER = "Your essays are saved in this browser. Photos aren’t kept; what was read from them and each check’s result are, so a repeat costs nothing.";
+export const FOOTER = "Your essays are saved in this browser only. Photos aren’t kept. The text read from each page and each check’s result are stored on our server so a repeat costs nothing, and so are notes you share.";
 
 function Bar({ path }: { path: string }): React.JSX.Element {
   const here = path.split("?")[0] ?? "/";

@@ -18,7 +18,7 @@ test("every menu item opens its screen from the desk and from the bar", async ({
     await page.getByRole("navigation", { name: "Menu" }).getByRole("link", { name: label }).click();
     await expect(page.getByRole("navigation", { name: "Menu" }).getByRole("link", { name: label })).toHaveAttribute("aria-current", "page");
   }
-  await expect(page.locator("footer")).toHaveText("Your essays are saved in this browser. Photos aren’t kept; what was read from them and each check’s result are, so a repeat costs nothing.");
+  await expect(page.locator("footer")).toHaveText("Your essays are saved in this browser only. Photos aren’t kept. The text read from each page and each check’s result are stored on our server so a repeat costs nothing, and so are notes you share.");
 });
 
 test("no screen scrolls sideways", async ({ page }) => {

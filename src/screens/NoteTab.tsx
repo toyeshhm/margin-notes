@@ -70,7 +70,7 @@ export default function NoteTab({ essay }: { essay: Essay }): React.JSX.Element 
         <p className="note-status" role="status">
           {state.kind === "copied" && (
             <>
-              <strong>Link copied.</strong> It opens this note, read-only, and nothing else from your essay.
+              <strong>Link copied.</strong> Anyone with it can read the note: your title, each mark, the marked sentence and your answer. It stays online and can’t be taken back.
             </>
           )}
           {state.kind === "shown" && (

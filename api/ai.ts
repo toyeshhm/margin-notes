@@ -24,7 +24,7 @@ export function json(body: unknown, status = 200): Response {
 
 export function failure(error: unknown): Response {
   if (error instanceof AllowanceUsed) {
-    return json({ error: "allowance", message: "Today's free reading allowance is used up. It resets at midnight UTC." }, 429);
+    return json({ error: "allowance", message: "Today's free reading allowance is used up. Try again tomorrow, or open a sample." }, 429);
   }
   if (error instanceof Busy) {
     return json({ error: "busy", message: "The reading models are busy right now. Try again in a minute." }, 503);

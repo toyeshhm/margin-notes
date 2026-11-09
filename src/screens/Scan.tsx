@@ -101,8 +101,8 @@ function Photos(): React.JSX.Element {
               <DriftImg src="/assets/scan-plane.webp" depth={-14} zoom={1} />
             </span>
             <p className="drop-title">Drop a photo of each marked page here</p>
-            <p>Add one to four pages, in order: a typed essay marked by hand, in any colour of pen.</p>
-            <p className="hint">Photos are sent to NVIDIA, Groq or Cloudflare to be read. Margin Notes doesn’t keep them; it keeps what was read, without the photo, so reading the same page again is free.</p>
+            <p>Add one to four pages, in order: a typed essay marked by hand, in any color of pen.</p>
+            <p className="hint">Photos are sent to NVIDIA, Groq or Cloudflare to be read. We don’t keep the photos. We keep the text read from them on our server, with no photo, so reading the same page again is free.</p>
             <button type="button" className="btn" onClick={() => input.current?.click()}>
               Choose photos
             </button>
@@ -199,7 +199,7 @@ function WordFile(): React.JSX.Element {
             Choose a Word file
           </button>
           <p className="progress" aria-live="polite">
-            {status.kind === "reading" ? "Reading the comments and putting each in plain words" : "The file is read here, in your browser."}
+            {status.kind === "reading" ? "Reading the comments and putting each in plain words" : "The file is opened in your browser. Its comments and the sentences they sit on are then sent to NVIDIA, Groq or Cloudflare to be put in plain words."}
           </p>
         </div>
         <input ref={input} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden onChange={(e) => {

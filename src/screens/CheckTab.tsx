@@ -112,6 +112,7 @@ export default function CheckTab({ essay }: { essay: Essay }): React.JSX.Element
           <label htmlFor="draft" className="revise-label">
             {essay.rounds.length === 0 ? "Paste your revised essay" : "Paste your newest draft"}
           </label>
+          <p className="hint">Your draft is sent to NVIDIA, Groq or Cloudflare to be checked. The draft isn’t kept; the sentences that answer each comment are.</p>
           <textarea
             id="draft"
             value={draft}
